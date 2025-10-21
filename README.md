@@ -7,31 +7,46 @@
 
 ## What It Does
 
-This extension adds two powerful tools to your Gemini CLI that solve critical visibility gaps:
+This extension adds three powerful tools to your Gemini CLI that solve critical visibility gaps:
 
-1. **Context Window Tracker** - Real-time monitoring of your token usage and context capacity
-2. **Cost Estimator** - Accurate API cost calculations with model comparisons
+1. **Context Window Tracker** - Real-time monitoring of your token usage and context capacity across all Gemini models
+2. **Cost Estimator** - Accurate API cost calculations with comprehensive model comparisons and savings analysis
+3. **Model Comparison** - Side-by-side comparison of all Gemini models with pricing, context windows, and cost estimates
 
 ### Why You Need This
 
-- ❌ **Before**: No idea how much context you're using or what it costs
-- ✅ **After**: Complete visibility into token usage and costs with optimization recommendations
+- ❌ **Before**: No idea how much context you're using, what it costs, or which model to choose
+- ✅ **After**: Complete visibility into token usage and costs with optimization recommendations and model comparison
 
 ## Features
 
 ### 🎯 Context Window Tracker
 
 - **Real-time Analysis**: See exactly how your context window is being used
+- **All Models Supported**: Track context for Gemini 2.5 Pro, 2.5 Flash, 2.5 Flash-Lite, 2.0 Flash, 1.5 Pro, and 1.5 Flash
 - **Component Breakdown**: Understand token distribution across system, tools, MCP servers, extensions, and context files
 - **Multiple Views**: Compact, standard, and detailed modes for different use cases
+- **Model-Specific Insights**: Get context window information specific to each model (1M or 2M tokens)
 - **Smart Recommendations**: Get actionable suggestions for optimization
 
 ### 💰 Cost Estimator
 
-- **Accurate Pricing**: Calculate costs based on current Gemini model pricing
-- **Model Comparison**: See cost differences across all Gemini models
+- **Accurate Pricing**: Calculate costs based on latest 2025 Gemini model pricing
+- **Latest Models**: Full support for Gemini 2.5 Pro and 2.5 Flash
+- **Tiered Pricing**: Automatically handles models with different rates for small vs large prompts
+- **Comprehensive Comparison**: See cost differences across ALL Gemini models with savings analysis
 - **Budget Planning**: Estimate costs for multiple requests
 - **Cost Breakdown**: Input vs output token costs clearly separated
+- **Smart Recommendations**: Get suggestions for cost savings by switching models
+
+### 📊 Model Comparison
+
+- **Complete Model Information**: Names, descriptions, and capabilities for all Gemini models
+- **Pricing Details**: Input and output token costs for each model
+- **Context Windows**: See maximum context capacity (1M or 2M tokens)
+- **Cost Estimates**: Calculate what each model would cost for your current usage
+- **Sorted by Cost**: Models automatically sorted from cheapest to most expensive
+- **Easy Decision Making**: Quickly find the best model for your needs and budget
 
 ## Installation
 
@@ -75,7 +90,7 @@ gemini
 /tools list
 ```
 
-You should see `track_context_usage` and `estimate_api_cost` in the list.
+You should see `track_context_usage`, `estimate_api_cost`, and `compare_gemini_models` in the list.
 
 ## Usage
 
@@ -89,16 +104,24 @@ Ask Gemini to analyze your context usage:
 
 The model will automatically invoke the `track_context_usage` tool and explain the results.
 
+**With specific models:**
+
+```
+> Show me context usage for Gemini 2.5 Pro
+> Analyze my context window for Gemini 1.5 Flash
+> What's my context usage with Gemini 2.5 Flash-Lite?
+```
+
 **Modes:**
 
 - **Compact**: Quick overview of usage percentage
 - **Standard**: Detailed breakdown by component (default)
-- **Detailed**: Full analysis with optimization recommendations
+- **Detailed**: Full analysis with optimization recommendations and model info
 
 Example with specific mode:
 
 ```
-> Show me a detailed analysis of my context usage including optimization recommendations
+> Show me a detailed analysis of my context usage for Gemini 2.5 Pro including optimization recommendations
 ```
 
 ### Cost Estimator
@@ -107,17 +130,78 @@ Ask Gemini to estimate your API costs:
 
 ```
 > What are my current API costs?
+> Estimate costs for Gemini 2.5 Flash
+> How much would it cost with Gemini 2.5 Pro?
 ```
 
-Or for specific scenarios:
+**Budget planning:**
 
 ```
-> Estimate the cost if I make 100 requests with this context
+> Estimate the cost if I make 100 requests with Gemini 2.5 Flash
+> What would 1000 requests cost with each model?
 ```
 
+**Model comparison (automatic):**
+
+The cost estimator automatically shows you how much you'd save (or spend) with each alternative model:
+
 ```
-> Compare costs between gemini-1.5-pro and gemini-2.0-flash-exp
+> Compare costs between all Gemini models
+> Show me which model is cheapest for my usage
 ```
+
+### Model Comparison
+
+Get a comprehensive comparison of all available Gemini models:
+
+```
+> Compare all Gemini models
+> Show me a table of Gemini model pricing
+> Which Gemini model should I use?
+> What are the differences between Gemini 2.5 Pro and 2.5 Flash?
+```
+
+The tool will show:
+- Complete model names and descriptions
+- Pricing for input and output tokens
+- Context window sizes
+- Estimated costs for your current usage
+- Models sorted from cheapest to most expensive
+
+## Supported Models
+
+### Gemini 2.5 Series (Latest - 2025)
+- **gemini-2.5-pro**: Most capable model for complex reasoning and coding tasks
+  - Input: $1.25/M (≤200k tokens), $2.50/M (>200k tokens)
+  - Output: $10/M (≤200k tokens), $15/M (>200k tokens)
+  - Context: 1M tokens
+  
+- **gemini-2.5-flash**: Balanced speed and performance for everyday tasks
+  - Input: $0.30/M
+  - Output: $2.50/M
+  - Context: 1M tokens
+  
+- **gemini-2.5-flash-lite**: Most cost-effective for high-volume tasks
+  - Input: $0.10/M
+  - Output: $0.40/M
+  - Context: 1M tokens
+
+### Gemini 2.0 Series
+- **gemini-2.0-flash-exp**: Experimental multimodal model
+  - Input: $0.10/M
+  - Output: $0.40/M
+  - Context: 1M tokens
+
+### Gemini 1.5 Series
+- **gemini-1.5-pro**: High-context model with 2M token window
+  - Input: $1.25/M (≤128k tokens), $2.50/M (>128k tokens)
+  - Output: $5/M (≤128k tokens), $10/M (>128k tokens)
+  - Context: 2M tokens
+  
+- **gemini-1.5-flash**: Cost-efficient model with long context support
+  - Input: $0.075/M (≤128k tokens), $0.15/M (>128k tokens)
+  - Output: $0.30/M (≤128k tokens), $0.60/M (>128k tokens)
+  - Context: 1M tokens
 
 ## Platform-Specific Instructions
 
@@ -157,11 +241,20 @@ The extension automatically loads configuration from:
 
 ### Pricing Updates
 
-Model pricing is defined in `src/tools/cost-estimator.ts`. To update:
+The extension includes the latest pricing (as of October 2025) for all Gemini models:
+- Gemini 2.5 Pro, 2.5 Flash, 2.5 Flash-Lite
+- Gemini 2.0 Flash (Experimental)
+- Gemini 1.5 Pro, 1.5 Flash
 
-1. Edit the `PRICING` constant
+Model pricing is defined in `src/tools/cost-estimator.ts`. To update pricing:
+
+1. Edit the `PRICING` constant with new rates
 2. Rebuild: `npm run build`
 3. Update the extension: `gemini extensions update gemini-context-extension`
+
+The pricing structure supports:
+- Simple flat-rate pricing (e.g., Gemini 2.5 Flash)
+- Tiered pricing based on prompt size (e.g., Gemini 2.5 Pro has different rates for prompts ≤200k vs >200k tokens)
 
 ## Development
 

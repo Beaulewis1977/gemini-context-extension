@@ -22,6 +22,20 @@ export interface ContextAnalysis {
   details?: Record<string, unknown>;
 }
 
+interface ModelContextWindow {
+  name: string;
+  contextWindow: number;
+}
+
+const MODEL_CONTEXT_WINDOWS: Record<string, ModelContextWindow> = {
+  'gemini-2.5-pro': { name: 'Gemini 2.5 Pro', contextWindow: 1000000 },
+  'gemini-2.5-flash': { name: 'Gemini 2.5 Flash', contextWindow: 1000000 },
+  'gemini-2.5-flash-lite': { name: 'Gemini 2.5 Flash-Lite', contextWindow: 1000000 },
+  'gemini-2.0-flash-exp': { name: 'Gemini 2.0 Flash (Experimental)', contextWindow: 1000000 },
+  'gemini-1.5-pro': { name: 'Gemini 1.5 Pro', contextWindow: 2000000 },
+  'gemini-1.5-flash': { name: 'Gemini 1.5 Flash', contextWindow: 1000000 },
+};
+
 export class ContextTracker {
   private tokenCounter: TokenCounter;
 
@@ -29,8 +43,11 @@ export class ContextTracker {
     this.tokenCounter = new TokenCounter();
   }
 
-  async analyze(mode: string = 'standard'): Promise<ContextAnalysis> {
+  async analyze(mode: string = 'standard', modelId: string = 'gemini-2.5-flash'): Promise<ContextAnalysis> {
     const geminiDir = await findGeminiDirectory();
+
+    // Get model info
+    const modelInfo = MODEL_CONTEXT_WINDOWS[modelId] || MODEL_CONTEXT_WINDOWS['gemini-2.5-flash'];
 
     // Estimate system context (~12k tokens for base Gemini)
     const systemContext = 12000;
@@ -48,12 +65,12 @@ export class ContextTracker {
     const contextFiles = await this.countContextFileTokens(geminiDir);
 
     const used = systemContext + builtInTools + mcpServers + extensions + contextFiles;
-    const total = 1000000; // 1M token window for gemini-2.0-flash-exp
+    const total = modelInfo.contextWindow;
     const percentage = Math.round((used / total) * 100);
     const available = total - used;
 
     const analysis: ContextAnalysis = {
-      model: 'gemini-2.0-flash-exp',
+      model: modelInfo.name,
       timestamp: new Date().toISOString(),
       usage: {
         used,
@@ -71,7 +88,7 @@ export class ContextTracker {
     };
 
     if (mode === 'detailed') {
-      analysis.details = await this.getDetailedBreakdown(geminiDir);
+      analysis.details = await this.getDetailedBreakdown(geminiDir, modelInfo.contextWindow);
     }
 
     return analysis;
@@ -143,9 +160,13 @@ export class ContextTracker {
     return total;
   }
 
-  private async getDetailedBreakdown(geminiDir: string | null): Promise<Record<string, unknown>> {
+  private async getDetailedBreakdown(geminiDir: string | null, contextWindow: number): Promise<Record<string, unknown>> {
     const details: Record<string, unknown> = {
       recommendations: [],
+      modelInfo: {
+        contextWindow,
+        contextWindowFormatted: `${(contextWindow / 1000000).toFixed(1)}M tokens`,
+      },
     };
 
     // Add optimization recommendations
@@ -163,6 +184,12 @@ export class ContextTracker {
       } catch {
         // Ignore
       }
+    }
+
+    if (contextWindow === 2000000) {
+      recommendations.push('You are using Gemini 1.5 Pro with a 2M token context window - ideal for large codebases');
+    } else if (contextWindow === 1000000) {
+      recommendations.push('Consider Gemini 1.5 Pro for 2M token context if you need more capacity');
     }
 
     details.recommendations = recommendations;
