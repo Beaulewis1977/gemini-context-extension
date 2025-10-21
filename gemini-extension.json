@@ -1,0 +1,14 @@
+
+{
+  "name": "gemini-context-extension",
+  "version": "1.0.0",
+  "description": "Context window tracker and cost estimator for Gemini CLI",
+  "mcpServers": {
+    "gemini-context-tools": {
+      "command": "node",
+      "args": ["${extensionPath}${pathSeparator}dist${pathSeparator}server.js"],
+      "cwd": "${extensionPath}"
+    }
+  },
+  "contextFileName": "GEMINI.md"
+}
