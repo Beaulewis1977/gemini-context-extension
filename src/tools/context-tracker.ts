@@ -43,7 +43,10 @@ export class ContextTracker {
     this.tokenCounter = new TokenCounter();
   }
 
-  async analyze(mode: string = 'standard', modelId: string = 'gemini-2.5-flash'): Promise<ContextAnalysis> {
+  async analyze(
+    mode: string = 'standard',
+    modelId: string = 'gemini-2.5-flash'
+  ): Promise<ContextAnalysis> {
     const geminiDir = await findGeminiDirectory();
 
     // Get model info
@@ -160,7 +163,10 @@ export class ContextTracker {
     return total;
   }
 
-  private async getDetailedBreakdown(geminiDir: string | null, contextWindow: number): Promise<Record<string, unknown>> {
+  private async getDetailedBreakdown(
+    geminiDir: string | null,
+    contextWindow: number
+  ): Promise<Record<string, unknown>> {
     const details: Record<string, unknown> = {
       recommendations: [],
       modelInfo: {
@@ -187,9 +193,13 @@ export class ContextTracker {
     }
 
     if (contextWindow === 2000000) {
-      recommendations.push('You are using Gemini 1.5 Pro with a 2M token context window - ideal for large codebases');
+      recommendations.push(
+        'You are using Gemini 1.5 Pro with a 2M token context window - ideal for large codebases'
+      );
     } else if (contextWindow === 1000000) {
-      recommendations.push('Consider Gemini 1.5 Pro for 2M token context if you need more capacity');
+      recommendations.push(
+        'Consider Gemini 1.5 Pro for 2M token context if you need more capacity'
+      );
     }
 
     details.recommendations = recommendations;

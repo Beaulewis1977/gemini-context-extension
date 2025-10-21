@@ -182,7 +182,10 @@ export class CostEstimator {
   private generateRecommendations(
     currentModel: string,
     contextTokens: number,
-    comparison: Record<string, { perRequest: number; total: number; savings: number; savingsPercent: number }>
+    comparison: Record<
+      string,
+      { perRequest: number; total: number; savings: number; savingsPercent: number }
+    >
   ): string[] {
     const recommendations: string[] = [];
 
@@ -210,7 +213,7 @@ export class CostEstimator {
     // Model-specific recommendations
     if (currentModel === 'gemini-2.5-pro' || currentModel === 'gemini-1.5-pro') {
       recommendations.push(
-        '⚡ Consider Flash models for faster responses if you don\'t need advanced reasoning'
+        "⚡ Consider Flash models for faster responses if you don't need advanced reasoning"
       );
     }
 
@@ -276,7 +279,9 @@ export class CostEstimator {
     }));
   }
 
-  private formatPricing(pricing: number | { small: number; large: number; threshold: number }): string {
+  private formatPricing(
+    pricing: number | { small: number; large: number; threshold: number }
+  ): string {
     if (typeof pricing === 'number') {
       return `$${pricing.toFixed(6)}/M tokens`;
     } else {

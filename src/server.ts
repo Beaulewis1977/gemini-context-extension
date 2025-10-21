@@ -154,7 +154,9 @@ server.registerTool(
               {
                 timestamp: new Date().toISOString(),
                 currentContextTokens: contextTokens.usage.used,
-                models: comparison.sort((a, b) => a.currentUsage.costPerRequest - b.currentUsage.costPerRequest),
+                models: comparison.sort(
+                  (a, b) => a.currentUsage.costPerRequest - b.currentUsage.costPerRequest
+                ),
               },
               null,
               2
