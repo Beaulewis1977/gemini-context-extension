@@ -1,15 +1,16 @@
 {
   "name": "gemini-context-extension",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Context window tracker and cost estimator for Gemini CLI",
   "type": "module",
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch",
+    "dev": "nodemon --watch src --ext ts --exec 'pnpm run build && node dist/server.js'",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
+    "smoke": "npm run build && node scripts/smoke.mjs",
     "prepare": "husky"
   },
   "keywords": [
@@ -20,18 +21,27 @@
     "context",
     "cost"
   ],
-  "author": "",
+  "author": "Beau Lewis <blewisxx@gmail.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Beaulewis1977/gemini-context-extension.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@modelcontextprotocol/inspector": "^0.17.2",
     "@types/node": "^20.11.24",
     "@typescript-eslint/eslint-plugin": "^7.1.0",
     "@typescript-eslint/parser": "^7.1.0",
     "eslint": "^8.57.0",
     "husky": "^9.1.7",
+    "nodemon": "^3.1.10",
     "prettier": "^3.2.5",
     "typescript": "~5.5.4"
   }

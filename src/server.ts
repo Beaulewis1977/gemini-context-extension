@@ -3,10 +3,11 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { ContextTracker } from './tools/context-tracker.js';
 import { CostEstimator } from './tools/cost-estimator.js';
+import { generatePerformanceReport, withProfiling } from './tools/performance-profiler.js';
 
 const server = new McpServer({
   name: 'gemini-context-extension',
-  version: '1.0.0',
+  version: '1.1.0',
 });
 
 const contextTracker = new ContextTracker();
@@ -31,8 +32,9 @@ server.registerTool(
         ),
     }).shape,
   },
-  async (params) => {
-    try {
+  withProfiling(
+    'track_context_usage',
+    async (params) => {
       const mode = params.mode || 'standard';
       const model = params.model || 'gemini-2.5-flash';
       const analysis = await contextTracker.analyze(mode, model);
@@ -45,19 +47,18 @@ server.registerTool(
           },
         ],
       };
-    } catch (error) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({
-              error: error instanceof Error ? error.message : 'Unknown error',
-            }),
-          },
-        ],
-      };
-    }
-  }
+    },
+    (error) => ({
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            error: error instanceof Error ? error.message : 'Unknown error',
+          }),
+        },
+      ],
+    })
+  )
 );
 
 // Cost Estimator Tool
@@ -76,8 +77,9 @@ server.registerTool(
       requestCount: z.number().optional().describe('Number of requests to estimate (default: 1)'),
     }).shape,
   },
-  async (params) => {
-    try {
+  withProfiling(
+    'estimate_api_cost',
+    async (params) => {
       const model = params.model || 'gemini-2.5-flash';
       const requestCount = params.requestCount || 1;
       const estimate = await costEstimator.estimate(model, requestCount);
@@ -90,19 +92,18 @@ server.registerTool(
           },
         ],
       };
-    } catch (error) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({
-              error: error instanceof Error ? error.message : 'Unknown error',
-            }),
-          },
-        ],
-      };
-    }
-  }
+    },
+    (error) => ({
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            error: error instanceof Error ? error.message : 'Unknown error',
+          }),
+        },
+      ],
+    })
+  )
 );
 
 // Model Comparison Tool
@@ -113,12 +114,12 @@ server.registerTool(
       'Compare all available Gemini models showing pricing, context windows, and cost estimates for current usage',
     inputSchema: z.object({}).shape,
   },
-  async () => {
-    try {
+  withProfiling(
+    'compare_gemini_models',
+    async () => {
       const models = costEstimator.getAllModels();
       const contextTokens = await contextTracker.analyze('compact');
 
-      // Calculate cost for each model using current context
       const comparison = await Promise.all(
         models.map(async (model) => {
           try {
@@ -164,19 +165,35 @@ server.registerTool(
           },
         ],
       };
-    } catch (error) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({
-              error: error instanceof Error ? error.message : 'Unknown error',
-            }),
-          },
-        ],
-      };
-    }
-  }
+    },
+    (error) => ({
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            error: error instanceof Error ? error.message : 'Unknown error',
+          }),
+        },
+      ],
+    })
+  )
+);
+
+server.registerTool(
+  'get_performance_profile',
+  {
+    description:
+      'Summarize tool execution metrics including times run, average duration, and failures for the current session',
+    inputSchema: z.object({}).shape,
+  },
+  withProfiling('get_performance_profile', async () => ({
+    content: [
+      {
+        type: 'text',
+        text: generatePerformanceReport(),
+      },
+    ],
+  }))
 );
 
 // Start server

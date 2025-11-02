@@ -12,6 +12,7 @@ This extension adds three powerful tools to your Gemini CLI that solve critical 
 1. **Context Window Tracker** - Real-time monitoring of your token usage and context capacity across all Gemini models
 2. **Cost Estimator** - Accurate API cost calculations with comprehensive model comparisons and savings analysis
 3. **Model Comparison** - Side-by-side comparison of all Gemini models with pricing, context windows, and cost estimates
+4. **Model Performance Profiler** - Real-time monitoring of tool performance to identify bottlenecks and errors.
 
 ### Why You Need This
 
@@ -49,6 +50,25 @@ This extension adds three powerful tools to your Gemini CLI that solve critical 
 - **Easy Decision Making**: Quickly find the best model for your needs and budget
 
 ## Installation
+
+### Quick Start
+
+```bash
+# Install extension directly
+gemini extensions install https://github.com/Beaulewis1977/gemini-context-extension
+
+# Verify tools (track_context_usage, estimate_api_cost, compare_gemini_models, get_performance_profile)
+gemini
+/tools list
+/tools run get_performance_profile {}
+
+# Update and rebuild if working locally
+npm install
+npm run build
+gemini extensions link .
+```
+
+Detailed installation paths are below if you need more context.
 
 ### Prerequisites
 
@@ -90,7 +110,7 @@ gemini
 /tools list
 ```
 
-You should see `track_context_usage`, `estimate_api_cost`, and `compare_gemini_models` in the list.
+You should see `track_context_usage`, `estimate_api_cost`, `compare_gemini_models`, and `get_performance_profile` in the list.
 
 ## Usage
 
@@ -167,6 +187,26 @@ The tool will show:
 - Context window sizes
 - Estimated costs for your current usage
 - Models sorted from cheapest to most expensive
+
+### Model Performance Profiler
+
+After running a few tools, you can get a performance report:
+
+```
+> Show me my tool performance
+```
+
+The tool will return a table with performance metrics for the current session:
+
+```
+Tool Performance Profile (Current Session)
+
+| Tool Name             | Times Run | Avg. Duration | Failures |
+|-----------------------|-----------|---------------|----------|
+| track_context_usage   | 3         | 125ms         | 0        |
+| estimate_api_cost     | 2         | 210ms         | 1        |
+| compare_gemini_models | 1         | 350ms         | 0        |
+```
 
 ## Supported Models
 

@@ -118,7 +118,7 @@ This document outlines planned features and tools for future versions of the Gem
 
 ---
 
-### Model Performance Profiler
+### Model Performance Profiler *(Completed in v1.1.0)*
 
 **Problem**: No visibility into response times, rate limits, or performance bottlenecks.
 
@@ -283,7 +283,7 @@ We're actively collecting feature requests from the community. If you have ideas
 | 1.0 | Core tools (Context + Cost) | ✅ Released |
 | 2.0 | Context Optimization | Q1 2026 |
 | 2.5 | Prompt Engineering | Q2 2026 |
-| 3.0 | Multi-Model Intelligence | Q3 2026 |
+| 3.0 | Multi-Model Intelligence | ✅ Released |
 | 3.5 | Session Intelligence | Q4 2026 |
 | 4.0 | Workflow Automation | Q1-Q2 2027 |
 | 5.0 | Collaboration | Q3-Q4 2027 |
