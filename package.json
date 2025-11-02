@@ -10,6 +10,7 @@
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
+    "smoke": "npm run build && node scripts/smoke.mjs",
     "prepare": "husky"
   },
   "keywords": [
@@ -20,8 +21,15 @@
     "context",
     "cost"
   ],
-  "author": "",
+  "author": "Beau Lewis <blewisxx@gmail.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Beaulewis1977/gemini-context-extension.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
     "zod": "^3.23.8"
