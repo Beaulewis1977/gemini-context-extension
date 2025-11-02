@@ -3,7 +3,7 @@
 > Essential context window tracking and cost estimation tools for Gemini CLI
 
 [![CI](https://github.com/Beaulewis1977/gemini-context-extension/actions/workflows/ci.yml/badge.svg)](https://github.com/Beaulewis1977/gemini-context-extension/actions/workflows/ci.yml)
-[![License: MIT](https://i.ytimg.com/vi/4cgpu9L2AE8/maxresdefault.jpg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## What It Does
 
@@ -438,6 +438,19 @@ MIT License - see [LICENSE](LICENSE) file for details.
 - **Issues**: [GitHub Issues](https://github.com/Beaulewis1977/gemini-context-extension/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/Beaulewis1977/gemini-context-extension/discussions)
 - **Documentation**: [Gemini CLI Docs](https://geminicli.com/docs/extensions/)
+
+## About the Developer
+
+Designed and made by Beau Lewis (blewisxx@gmail.com).
+
+"I enjoy creating open-source projects that help people. If this project was helpful to you and you’d like to help the cause, please do!"
+
+### Support My Work
+
+- **Venmo**: @beauintulsa
+- **Ko-fi**: [ko-fi.com/beaulewis](https://ko-fi.com/beaulewis)
+
+---
 
 ## Acknowledgments
 
