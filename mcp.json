@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "gemini-context-extension-server": {
+      "command": "node",
+      "args": ["dist/server.js"]
+    }
+  }
+}
