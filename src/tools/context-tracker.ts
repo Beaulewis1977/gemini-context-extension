@@ -39,17 +39,18 @@ const MODEL_CONTEXT_WINDOWS: Record<string, ModelContextWindow> = {
 /**
  * Tracks context window usage for Gemini models.
  *
- * IMPORTANT: Token counts are ESTIMATED using heuristics, not actual Gemini API counts.
- * For production use, integrate with the Gemini API countTokens endpoint for accuracy.
+ * Uses Gemini API countTokens when available for accurate counts.
+ * Falls back to heuristic estimation (~3.5 chars/token) when API is unavailable.
  *
- * Estimation method: ~3.5 characters per token (SentencePiece tokenization approximation)
- * System/tool estimates: Conservative estimates based on typical usage patterns
+ * To enable API-based counting, set GEMINI_API_KEY environment variable.
  */
 export class ContextTracker {
   private tokenCounter: TokenCounter;
+  private modelId: string;
 
   constructor() {
     this.tokenCounter = new TokenCounter();
+    this.modelId = 'gemini-2.5-flash'; // Default model for counting
   }
 
   async analyze(
@@ -62,29 +63,24 @@ export class ContextTracker {
       throw new Error(`Invalid analysis mode: ${mode}. Valid modes are: ${validModes.join(', ')}`);
     }
 
+    // Set model ID for token counting
+    this.modelId = modelId;
+
     const geminiDir = await findGeminiDirectory();
 
     // Get model info
     const modelInfo = MODEL_CONTEXT_WINDOWS[modelId] || MODEL_CONTEXT_WINDOWS['gemini-2.5-flash'];
 
-    // IMPORTANT: These are ESTIMATED token counts, not actual Gemini API counts
-    // For accurate token counting, use the Gemini API countTokens endpoint
-
-    // Estimate system context (~12k tokens for base Gemini)
-    // This is a conservative estimate based on typical Gemini system overhead
+    // System and built-in tool token counts
+    // Note: These are conservative estimates. For exact counts, these would need
+    // to be measured from actual Gemini system prompts
     const systemContext = 12000;
-
-    // Estimate built-in tools (~18k tokens)
-    // Estimated token usage for Gemini's built-in tool definitions
     const builtInTools = 18000;
 
-    // Count MCP servers
+    // Count MCP servers, extensions, and context files
+    // Uses Gemini API when available for accurate counts
     const mcpServers = await this.countMcpServerTokens(geminiDir);
-
-    // Count extensions
     const extensions = await this.countExtensionTokens(geminiDir);
-
-    // Count context files
     const contextFiles = await this.countContextFileTokens(geminiDir);
 
     const used = systemContext + builtInTools + mcpServers + extensions + contextFiles;
@@ -149,7 +145,8 @@ export class ContextTracker {
         const contextFile = join(extensionsDir, ext, 'GEMINI.md');
         try {
           const content = await fs.readFile(contextFile, 'utf-8');
-          total += this.tokenCounter.estimate(content);
+          // Use async count() for accurate API-based counting
+          total += await this.tokenCounter.count(content, this.modelId);
         } catch {
           // No context file
         }
@@ -172,7 +169,8 @@ export class ContextTracker {
       try {
         const contextFile = join(currentDir, 'GEMINI.md');
         const content = await fs.readFile(contextFile, 'utf-8');
-        total += this.tokenCounter.estimate(content);
+        // Use async count() for accurate API-based counting
+        total += await this.tokenCounter.count(content, this.modelId);
       } catch {
         // No context file at this level
       }

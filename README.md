@@ -232,12 +232,59 @@ The extension will automatically detect the WSL environment and configure paths 
 
 ## Configuration
 
+### Accurate Token Counting (Optional)
+
+By default, the extension uses heuristic estimation (~3.5 characters per token) for token counting. For **accurate real-time token counts**, you can enable Gemini API integration:
+
+#### Enable API-Based Token Counting
+
+1. **Get a Gemini API key** (free):
+   - Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
+   - Create a new API key
+
+2. **Set the environment variable**:
+
+   **Linux/macOS/WSL**:
+   ```bash
+   export GEMINI_API_KEY='your-api-key-here'
+   ```
+
+   **Windows (PowerShell)**:
+   ```powershell
+   $env:GEMINI_API_KEY='your-api-key-here'
+   ```
+
+   **Windows (CMD)**:
+   ```cmd
+   set GEMINI_API_KEY=your-api-key-here
+   ```
+
+3. **Restart your Gemini CLI**
+
+#### Benefits of API Integration
+
+- ✅ **Accurate Token Counts**: Real counts from Gemini API instead of estimates
+- ✅ **Precise Cost Calculations**: Budget planning with exact token usage
+- ✅ **Model-Specific Counting**: Counts match the exact tokenization for each model
+- ✅ **Automatic Fallback**: If API is unavailable, falls back to estimation automatically
+- ✅ **FREE**: The countTokens API endpoint has no cost (3000 requests/min limit)
+
+#### Verify API Integration
+
+After setting your API key, check if it's working:
+
+```bash
+# The extension will log whether it's using API or estimation
+gemini
+```
+
 ### Extension Settings
 
 The extension automatically loads configuration from:
 
 - `gemini-extension.json`: Core extension manifest
 - `GEMINI.md`: Contextual instructions for the AI model
+- `GEMINI_API_KEY` environment variable (optional): For accurate token counting
 
 ### Pricing Updates
 
@@ -364,7 +411,17 @@ If you see path-related errors on Windows:
 
 ### Token Counting Accuracy
 
-The extension uses estimation (~3.5 characters per token for Gemini). For production use with precise requirements, consider integrating with Gemini's token counting API endpoint.
+**With API Key (Recommended)**:
+- Set `GEMINI_API_KEY` environment variable to use real Gemini API token counting
+- Provides exact token counts from Google's official tokenization
+- Free to use (no cost for countTokens API)
+
+**Without API Key (Default)**:
+- Uses heuristic estimation (~3.5 characters per token)
+- Good for general usage and development
+- No external API calls required
+
+To enable accurate counting, see the [Configuration](#accurate-token-counting-optional) section above.
 
 ## Contributing
 
