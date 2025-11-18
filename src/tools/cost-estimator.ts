@@ -61,6 +61,16 @@ const PRICING: Record<string, ModelPricing> = {
     description: 'Most cost-effective for high-volume tasks',
   },
 
+  // Gemini 3.0 Series (Preview)
+  'gemini-3-pro-preview': {
+    input: { small: 0.002, large: 0.004, threshold: 200000 },
+    output: { small: 0.012, large: 0.018, threshold: 200000 },
+    name: 'Gemini 3 Pro (Preview)',
+    contextWindow: 1000000,
+    description:
+      'Most intelligent model for advanced reasoning, agentic workflows, and complex multimodal tasks',
+  },
+
   // Gemini 2.0 Series
   'gemini-2.0-flash-exp': {
     input: 0.0001,

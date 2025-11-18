@@ -27,7 +27,7 @@ server.registerTool(
         .string()
         .optional()
         .describe(
-          'Model to analyze context for (default: gemini-2.5-flash). Available: gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite, gemini-2.0-flash-exp, gemini-1.5-pro, gemini-1.5-flash'
+          'Model to analyze context for (default: gemini-2.5-flash). Available: gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite, gemini-3-pro-preview, gemini-2.0-flash-exp, gemini-1.5-pro, gemini-1.5-flash'
         ),
     }).shape,
   },
@@ -71,7 +71,7 @@ server.registerTool(
         .string()
         .optional()
         .describe(
-          'Model name (default: gemini-2.5-flash). Available: gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite, gemini-2.0-flash-exp, gemini-1.5-pro, gemini-1.5-flash'
+          'Model name (default: gemini-2.5-flash). Available: gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite, gemini-3-pro-preview, gemini-2.0-flash-exp, gemini-1.5-pro, gemini-1.5-flash'
         ),
       requestCount: z.number().optional().describe('Number of requests to estimate (default: 1)'),
     }).shape,
