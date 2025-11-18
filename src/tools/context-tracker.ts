@@ -36,6 +36,15 @@ const MODEL_CONTEXT_WINDOWS: Record<string, ModelContextWindow> = {
   'gemini-1.5-flash': { name: 'Gemini 1.5 Flash', contextWindow: 1000000 },
 };
 
+/**
+ * Tracks context window usage for Gemini models.
+ *
+ * IMPORTANT: Token counts are ESTIMATED using heuristics, not actual Gemini API counts.
+ * For production use, integrate with the Gemini API countTokens endpoint for accuracy.
+ *
+ * Estimation method: ~3.5 characters per token (SentencePiece tokenization approximation)
+ * System/tool estimates: Conservative estimates based on typical usage patterns
+ */
 export class ContextTracker {
   private tokenCounter: TokenCounter;
 
@@ -47,15 +56,26 @@ export class ContextTracker {
     mode: string = 'standard',
     modelId: string = 'gemini-2.5-flash'
   ): Promise<ContextAnalysis> {
+    // Validate mode
+    const validModes = ['compact', 'standard', 'detailed'];
+    if (!validModes.includes(mode)) {
+      throw new Error(`Invalid analysis mode: ${mode}. Valid modes are: ${validModes.join(', ')}`);
+    }
+
     const geminiDir = await findGeminiDirectory();
 
     // Get model info
     const modelInfo = MODEL_CONTEXT_WINDOWS[modelId] || MODEL_CONTEXT_WINDOWS['gemini-2.5-flash'];
 
+    // IMPORTANT: These are ESTIMATED token counts, not actual Gemini API counts
+    // For accurate token counting, use the Gemini API countTokens endpoint
+
     // Estimate system context (~12k tokens for base Gemini)
+    // This is a conservative estimate based on typical Gemini system overhead
     const systemContext = 12000;
 
     // Estimate built-in tools (~18k tokens)
+    // Estimated token usage for Gemini's built-in tool definitions
     const builtInTools = 18000;
 
     // Count MCP servers
@@ -108,6 +128,8 @@ export class ContextTracker {
       if (!settings.mcpServers) return 0;
 
       // Estimate ~5k tokens per MCP server
+      // This is a rough estimate for server configuration and tool definitions
+      // Actual token usage may vary significantly based on tool complexity
       const serverCount = Object.keys(settings.mcpServers).length;
       return serverCount * 5000;
     } catch {

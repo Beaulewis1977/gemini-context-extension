@@ -39,23 +39,24 @@ interface CostEstimate {
 
 const PRICING: Record<string, ModelPricing> = {
   // Gemini 2.5 Series (Latest)
+  // Pricing updated 2025-11-18 from https://ai.google.dev/gemini-api/docs/pricing
   'gemini-2.5-pro': {
-    input: { small: 0.00125, large: 0.0025, threshold: 200000 },
-    output: { small: 0.01, large: 0.015, threshold: 200000 },
+    input: { small: 1.25, large: 2.5, threshold: 200000 },
+    output: { small: 10.0, large: 15.0, threshold: 200000 },
     name: 'Gemini 2.5 Pro',
     contextWindow: 1000000,
     description: 'Most capable model for complex reasoning and coding tasks',
   },
   'gemini-2.5-flash': {
-    input: 0.0003,
-    output: 0.0025,
+    input: 0.3,
+    output: 2.5,
     name: 'Gemini 2.5 Flash',
     contextWindow: 1000000,
     description: 'Balanced speed and performance for everyday tasks',
   },
   'gemini-2.5-flash-lite': {
-    input: 0.0001,
-    output: 0.0004,
+    input: 0.1,
+    output: 0.4,
     name: 'Gemini 2.5 Flash-Lite',
     contextWindow: 1000000,
     description: 'Most cost-effective for high-volume tasks',
@@ -63,8 +64,8 @@ const PRICING: Record<string, ModelPricing> = {
 
   // Gemini 2.0 Series
   'gemini-2.0-flash-exp': {
-    input: 0.0001,
-    output: 0.0004,
+    input: 0.1,
+    output: 0.4,
     name: 'Gemini 2.0 Flash (Experimental)',
     contextWindow: 1000000,
     description: 'Experimental multimodal model',
@@ -72,21 +73,32 @@ const PRICING: Record<string, ModelPricing> = {
 
   // Gemini 1.5 Series
   'gemini-1.5-pro': {
-    input: { small: 0.00125, large: 0.0025, threshold: 128000 },
-    output: { small: 0.005, large: 0.01, threshold: 128000 },
+    input: { small: 1.25, large: 2.5, threshold: 128000 },
+    output: { small: 5.0, large: 10.0, threshold: 128000 },
     name: 'Gemini 1.5 Pro',
     contextWindow: 2000000,
     description: 'High-context model with 2M token window',
   },
   'gemini-1.5-flash': {
-    input: { small: 0.000075, large: 0.00015, threshold: 128000 },
-    output: { small: 0.0003, large: 0.0006, threshold: 128000 },
+    input: { small: 0.075, large: 0.15, threshold: 128000 },
+    output: { small: 0.3, large: 0.6, threshold: 128000 },
     name: 'Gemini 1.5 Flash',
     contextWindow: 1000000,
     description: 'Cost-efficient model with long context support',
   },
 };
 
+/**
+ * Estimates API costs for Gemini models based on token usage.
+ *
+ * IMPORTANT: Cost estimates are based on ESTIMATED token counts, not actual API counts.
+ * Token counting uses a heuristic (~3.5 chars/token) which may differ from actual usage.
+ *
+ * Pricing data: https://ai.google.dev/gemini-api/docs/pricing
+ * Last updated: 2025-11-18
+ *
+ * For production budgeting, monitor actual API usage through Google Cloud Console.
+ */
 export class CostEstimator {
   private tokenCounter: TokenCounter;
 
@@ -98,6 +110,17 @@ export class CostEstimator {
     model: string = 'gemini-2.5-flash',
     requestCount: number = 1
   ): Promise<CostEstimate> {
+    // Validate request count
+    if (typeof requestCount !== 'number' || !Number.isFinite(requestCount)) {
+      throw new TypeError('Request count must be a finite number');
+    }
+    if (requestCount < 1) {
+      throw new RangeError('Request count must be at least 1');
+    }
+    if (!Number.isInteger(requestCount)) {
+      throw new TypeError('Request count must be an integer');
+    }
+
     const pricing = PRICING[model];
     if (!pricing) {
       const availableModels = Object.keys(PRICING).join(', ');
@@ -253,7 +276,8 @@ export class CostEstimator {
   }
 
   private roundToCents(value: number): number {
-    return Math.round(value * 100) / 100;
+    // Round to 6 decimal places to show small costs accurately
+    return Math.round(value * 1000000) / 1000000;
   }
 
   // Get all available models with their information
