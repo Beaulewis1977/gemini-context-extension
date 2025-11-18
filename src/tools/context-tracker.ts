@@ -36,6 +36,14 @@ const MODEL_CONTEXT_WINDOWS: Record<string, ModelContextWindow> = {
   'gemini-1.5-flash': { name: 'Gemini 1.5 Flash', contextWindow: 1000000 },
 };
 
+/**
+ * Tracks context window usage for Gemini models.
+ *
+ * Uses Gemini API countTokens when available for accurate counts.
+ * Falls back to heuristic estimation (~3.5 chars/token) when API is unavailable.
+ *
+ * To enable API-based counting, set GEMINI_API_KEY environment variable.
+ */
 export class ContextTracker {
   private tokenCounter: TokenCounter;
 
@@ -47,25 +55,28 @@ export class ContextTracker {
     mode: string = 'standard',
     modelId: string = 'gemini-2.5-flash'
   ): Promise<ContextAnalysis> {
+    // Validate mode
+    const validModes = ['compact', 'standard', 'detailed'];
+    if (!validModes.includes(mode)) {
+      throw new Error(`Invalid analysis mode: ${mode}. Valid modes are: ${validModes.join(', ')}`);
+    }
+
     const geminiDir = await findGeminiDirectory();
 
     // Get model info
     const modelInfo = MODEL_CONTEXT_WINDOWS[modelId] || MODEL_CONTEXT_WINDOWS['gemini-2.5-flash'];
 
-    // Estimate system context (~12k tokens for base Gemini)
+    // System and built-in tool token counts
+    // Note: These are conservative estimates. For exact counts, these would need
+    // to be measured from actual Gemini system prompts
     const systemContext = 12000;
-
-    // Estimate built-in tools (~18k tokens)
     const builtInTools = 18000;
 
-    // Count MCP servers
-    const mcpServers = await this.countMcpServerTokens(geminiDir);
-
-    // Count extensions
-    const extensions = await this.countExtensionTokens(geminiDir);
-
-    // Count context files
-    const contextFiles = await this.countContextFileTokens(geminiDir);
+    // Count MCP servers, extensions, and context files
+    // Uses Gemini API when available for accurate counts
+    const mcpServers = await this.countMcpServerTokens(geminiDir, modelId);
+    const extensions = await this.countExtensionTokens(geminiDir, modelId);
+    const contextFiles = await this.countContextFileTokens(geminiDir, modelId);
 
     const used = systemContext + builtInTools + mcpServers + extensions + contextFiles;
     const total = modelInfo.contextWindow;
@@ -97,7 +108,7 @@ export class ContextTracker {
     return analysis;
   }
 
-  private async countMcpServerTokens(geminiDir: string | null): Promise<number> {
+  private async countMcpServerTokens(geminiDir: string | null, _modelId: string): Promise<number> {
     if (!geminiDir) return 0;
 
     try {
@@ -108,51 +119,74 @@ export class ContextTracker {
       if (!settings.mcpServers) return 0;
 
       // Estimate ~5k tokens per MCP server
+      // This is a rough estimate for server configuration and tool definitions
+      // Actual token usage may vary significantly based on tool complexity
       const serverCount = Object.keys(settings.mcpServers).length;
       return serverCount * 5000;
-    } catch {
+    } catch (error) {
+      // Differentiate between file-not-found and other errors
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+        // Settings file doesn't exist - this is expected in some cases
+        return 0;
+      }
+      // Log other errors but don't fail
+      console.warn('Error reading MCP server settings:', error);
       return 0;
     }
   }
 
-  private async countExtensionTokens(geminiDir: string | null): Promise<number> {
+  private async countExtensionTokens(geminiDir: string | null, modelId: string): Promise<number> {
     if (!geminiDir) return 0;
 
     try {
       const extensionsDir = join(dirname(geminiDir), 'extensions');
       const extensions = await fs.readdir(extensionsDir);
 
-      let total = 0;
+      // Collect all extension context files
+      const contents: string[] = [];
       for (const ext of extensions) {
         const contextFile = join(extensionsDir, ext, 'GEMINI.md');
         try {
           const content = await fs.readFile(contextFile, 'utf-8');
-          total += this.tokenCounter.estimate(content);
-        } catch {
-          // No context file
+          contents.push(content);
+        } catch (error) {
+          if (error instanceof Error && 'code' in error && error.code !== 'ENOENT') {
+            console.warn(`Error reading extension context file ${contextFile}:`, error);
+          }
+          // No context file or read error - skip this extension
         }
       }
 
-      return total;
-    } catch {
+      // Use batch counting for efficiency
+      if (contents.length === 0) return 0;
+      return await this.tokenCounter.countBatch(contents, modelId);
+    } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+        // Extensions directory doesn't exist
+        return 0;
+      }
+      console.warn('Error reading extensions directory:', error);
       return 0;
     }
   }
 
-  private async countContextFileTokens(geminiDir: string | null): Promise<number> {
+  private async countContextFileTokens(geminiDir: string | null, modelId: string): Promise<number> {
     if (!geminiDir) return 0;
 
-    let total = 0;
+    const contents: string[] = [];
     let currentDir = geminiDir;
 
-    // Walk up directory tree
+    // Walk up directory tree and collect all context files
     while (currentDir) {
       try {
         const contextFile = join(currentDir, 'GEMINI.md');
         const content = await fs.readFile(contextFile, 'utf-8');
-        total += this.tokenCounter.estimate(content);
-      } catch {
-        // No context file at this level
+        contents.push(content);
+      } catch (error) {
+        if (error instanceof Error && 'code' in error && error.code !== 'ENOENT') {
+          console.warn(`Error reading context file at ${currentDir}:`, error);
+        }
+        // No context file at this level or read error - continue
       }
 
       const parent = dirname(currentDir);
@@ -160,7 +194,9 @@ export class ContextTracker {
       currentDir = parent;
     }
 
-    return total;
+    // Use batch counting for efficiency
+    if (contents.length === 0) return 0;
+    return await this.tokenCounter.countBatch(contents, modelId);
   }
 
   private async getDetailedBreakdown(
