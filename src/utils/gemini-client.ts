@@ -48,8 +48,17 @@ export class GeminiClient {
    * @param model - The model ID to use for counting (default: gemini-2.5-flash)
    * @returns Token count from the API
    * @throws Error if API is not available or request fails
+   * @throws TypeError if text is not a string
    */
   async countTokens(text: string, model: string = 'gemini-2.5-flash'): Promise<number> {
+    // Validate input
+    if (text === null || text === undefined) {
+      throw new TypeError('Text parameter cannot be null or undefined');
+    }
+    if (typeof text !== 'string') {
+      throw new TypeError(`Text parameter must be a string, got ${typeof text}`);
+    }
+
     if (!this.client) {
       throw new Error(
         'Gemini API client not initialized. Set GEMINI_API_KEY environment variable.'
@@ -69,25 +78,37 @@ export class GeminiClient {
   }
 
   /**
-   * Batch count tokens for multiple texts
+   * Batch count tokens for multiple texts using concurrent requests
    *
    * @param texts - Array of texts to count
    * @param model - The model ID to use for counting
    * @returns Total token count
    * @throws Error if API is not available or request fails
+   * @throws TypeError if texts is not an array or contains non-strings
    */
   async countTokensBatch(texts: string[], model: string = 'gemini-2.5-flash'): Promise<number> {
+    // Validate input
+    if (!Array.isArray(texts)) {
+      throw new TypeError('Texts parameter must be an array');
+    }
+
+    // Validate all array elements are strings
+    for (let i = 0; i < texts.length; i++) {
+      if (typeof texts[i] !== 'string') {
+        throw new TypeError(
+          `All elements in texts array must be strings. Element at index ${i} is ${typeof texts[i]}`
+        );
+      }
+    }
+
     if (!this.client) {
       throw new Error(
         'Gemini API client not initialized. Set GEMINI_API_KEY environment variable.'
       );
     }
 
-    let total = 0;
-    for (const text of texts) {
-      const count = await this.countTokens(text, model);
-      total += count;
-    }
-    return total;
+    // Use Promise.all for concurrent requests (respecting API rate limits)
+    const counts = await Promise.all(texts.map((text) => this.countTokens(text, model)));
+    return counts.reduce((sum, count) => sum + count, 0);
   }
 }

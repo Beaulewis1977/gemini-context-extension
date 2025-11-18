@@ -63,6 +63,15 @@ export class TokenCounter {
       throw new TypeError('Texts parameter must be an array');
     }
 
+    // Validate all array elements are strings
+    for (let i = 0; i < texts.length; i++) {
+      if (typeof texts[i] !== 'string') {
+        throw new TypeError(
+          `All elements in texts array must be strings. Element at index ${i} is ${typeof texts[i]}`
+        );
+      }
+    }
+
     // Try to use API if available
     if (this.useApi && this.geminiClient.isAvailable()) {
       try {
@@ -113,11 +122,22 @@ export class TokenCounter {
    * @deprecated Use countBatch() method instead for accurate API-based counting
    * @param texts - Array of texts to estimate
    * @returns Total estimated token count
+   * @throws {TypeError} If texts is not an array or contains non-strings
    */
   estimateBatch(texts: string[]): number {
     if (!Array.isArray(texts)) {
       throw new TypeError('Texts parameter must be an array');
     }
+
+    // Validate all array elements are strings
+    for (let i = 0; i < texts.length; i++) {
+      if (typeof texts[i] !== 'string') {
+        throw new TypeError(
+          `All elements in texts array must be strings. Element at index ${i} is ${typeof texts[i]}`
+        );
+      }
+    }
+
     return texts.reduce((sum, text) => sum + this.estimateTokens(text), 0);
   }
 

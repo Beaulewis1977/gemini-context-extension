@@ -91,8 +91,14 @@ const PRICING: Record<string, ModelPricing> = {
 /**
  * Estimates API costs for Gemini models based on token usage.
  *
- * IMPORTANT: Cost estimates are based on ESTIMATED token counts, not actual API counts.
- * Token counting uses a heuristic (~3.5 chars/token) which may differ from actual usage.
+ * Cost calculations use conservative fixed estimates for system and tool context:
+ * - System context: ~12k tokens
+ * - Built-in tools: ~18k tokens
+ * - MCP servers: ~5k tokens each
+ *
+ * Extension and context file tokens use TokenCounter which supports:
+ * - Real Gemini API counts (when GEMINI_API_KEY is set)
+ * - Heuristic estimation fallback (~3.5 chars/token)
  *
  * Pricing data: https://ai.google.dev/gemini-api/docs/pricing
  * Last updated: 2025-11-18
@@ -145,13 +151,13 @@ export class CostEstimator {
       contextTokens,
       estimatedResponseTokens,
       costs: {
-        perRequest: this.roundToCents(perRequest),
+        perRequest: this.roundCost(perRequest),
         totalRequests: requestCount,
-        total: this.roundToCents(total),
+        total: this.roundCost(total),
       },
       breakdown: {
-        inputCost: this.roundToCents(inputCost),
-        outputCost: this.roundToCents(outputCost),
+        inputCost: this.roundCost(inputCost),
+        outputCost: this.roundCost(outputCost),
       },
     };
 
@@ -171,9 +177,9 @@ export class CostEstimator {
       const savingsPercent = currentTotal > 0 ? (savings / currentTotal) * 100 : 0;
 
       estimate.comparison[modelPricing.name] = {
-        perRequest: this.roundToCents(altPerRequest),
-        total: this.roundToCents(altTotal),
-        savings: this.roundToCents(savings),
+        perRequest: this.roundCost(altPerRequest),
+        total: this.roundCost(altTotal),
+        savings: this.roundCost(savings),
         savingsPercent: Math.round(savingsPercent),
       };
     }
@@ -217,10 +223,10 @@ export class CostEstimator {
 
     if (sortedModels.length > 0) {
       const cheapest = sortedModels[0];
-      if (cheapest[1].savings < 0) {
-        // Negative savings means the compared model is cheaper
+      if (cheapest[1].savings > 0) {
+        // Positive savings means the compared model is cheaper (you save money by switching)
         recommendations.push(
-          `💰 Save ${Math.abs(cheapest[1].savingsPercent)}% by switching to ${cheapest[0]} ($${Math.abs(cheapest[1].savings).toFixed(4)} per request)`
+          `💰 Save ${cheapest[1].savingsPercent}% by switching to ${cheapest[0]} ($${cheapest[1].savings.toFixed(6)} per request)`
         );
       }
     }
@@ -275,7 +281,7 @@ export class CostEstimator {
     return total;
   }
 
-  private roundToCents(value: number): number {
+  private roundCost(value: number): number {
     // Round to 6 decimal places to show small costs accurately
     return Math.round(value * 1000000) / 1000000;
   }

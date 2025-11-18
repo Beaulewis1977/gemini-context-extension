@@ -238,9 +238,12 @@ By default, the extension uses heuristic estimation (~3.5 characters per token) 
 
 #### Enable API-Based Token Counting
 
+> **⚠️ Security Warning**: Never commit API keys to version control or hardcode them in your code. Always use environment variables and add your `.env` files to `.gitignore`.
+
 1. **Get a Gemini API key** (free):
    - Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
    - Create a new API key
+   - **Keep it secure** - treat it like a password
 
 2. **Set the environment variable**:
 
@@ -288,7 +291,7 @@ The extension automatically loads configuration from:
 
 ### Pricing Updates
 
-The extension includes the latest pricing (as of October 2025) for all Gemini models:
+The extension includes the latest pricing (as of November 2025) for all Gemini models:
 - Gemini 2.5 Pro, 2.5 Flash, 2.5 Flash-Lite
 - Gemini 2.0 Flash (Experimental)
 - Gemini 1.5 Pro, 1.5 Flash
