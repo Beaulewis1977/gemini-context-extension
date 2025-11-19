@@ -1,0 +1,69 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "title": "My Awesome Project",
+    "description": "A comprehensive description of my project that overrides the README"
+  },
+  "repoNotes": "This is a production-ready MCP server that provides context tracking and wiki generation capabilities. Special attention should be paid to the cost estimation features and configuration system.",
+  "sections": [
+    {
+      "type": "overview",
+      "title": "Project Overview",
+      "enabled": true,
+      "model": "gemini-2.5-flash"
+    },
+    {
+      "type": "architecture",
+      "title": "System Architecture",
+      "enabled": true,
+      "includeCodeExamples": true,
+      "model": "gemini-2.5-pro"
+    },
+    {
+      "type": "setup",
+      "title": "Getting Started",
+      "enabled": true
+    },
+    {
+      "type": "development",
+      "title": "Development Guide",
+      "enabled": true
+    },
+    {
+      "type": "api",
+      "title": "API Reference",
+      "enabled": true
+    },
+    {
+      "type": "testing",
+      "title": "Testing Guide",
+      "enabled": true
+    },
+    {
+      "type": "custom",
+      "title": "Security Considerations",
+      "enabled": true,
+      "prompt": "Analyze the security measures and best practices implemented in this {LANGUAGE} codebase. Focus on:\n1. API key security\n2. Input validation\n3. Error handling\n4. Data privacy\n5. Best practices for {FRAMEWORKS}\n\nProvide specific code examples where relevant."
+    }
+  ],
+  "diagrams": {
+    "enabled": true,
+    "types": ["architecture", "dataflow"]
+  },
+  "exclude": {
+    "paths": [
+      "node_modules/**",
+      "dist/**",
+      ".git/**",
+      "**/*.test.ts",
+      "**/__tests__/**",
+      "coverage/**",
+      ".vscode/**"
+    ]
+  },
+  "generation": {
+    "defaultModel": "gemini-2.5-flash",
+    "maxTokensPerSection": 2000,
+    "parallelSections": 3
+  }
+}

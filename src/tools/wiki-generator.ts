@@ -1,6 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { RepositoryAnalysis } from './repo-analyzer.js';
 import { PromptBuilder } from '../utils/prompt-builder.js';
+import { promises as fs } from 'fs';
+import { join } from 'path';
 
 /**
  * Options for wiki generation
@@ -9,6 +11,53 @@ export interface WikiGenerationOptions {
   model?: string; // Default: gemini-2.5-flash
   sections?: string[]; // Default: all sections
   includeDiagrams?: boolean; // Default: true
+}
+
+/**
+ * Configuration for a wiki section
+ */
+export interface SectionConfig {
+  type: string;
+  title?: string;
+  enabled?: boolean;
+  model?: string;
+  includeCodeExamples?: boolean;
+  prompt?: string; // For custom sections
+}
+
+/**
+ * Configuration for diagrams
+ */
+export interface DiagramConfig {
+  enabled?: boolean;
+  types?: Array<'architecture' | 'dataflow' | 'directory' | 'dependency'>;
+}
+
+/**
+ * Generation settings
+ */
+export interface GenerationConfig {
+  defaultModel: string;
+  maxTokensPerSection: number;
+  parallelSections: number;
+}
+
+/**
+ * Wiki configuration from .gemini/wiki.json
+ */
+export interface WikiConfig {
+  version: string;
+  metadata?: {
+    title?: string;
+    description?: string;
+  };
+  repoNotes?: string;
+  sections?: SectionConfig[];
+  diagrams?: DiagramConfig;
+  exclude?: {
+    paths?: string[];
+  };
+  generation?: GenerationConfig;
 }
 
 /**
@@ -60,6 +109,33 @@ export class WikiGenerator {
     'testing',
   ];
 
+  /**
+   * Default wiki configuration
+   */
+  private readonly DEFAULT_CONFIG: WikiConfig = {
+    version: '1.0',
+    sections: [
+      { type: 'overview', enabled: true },
+      { type: 'architecture', enabled: true },
+      { type: 'setup', enabled: true },
+      { type: 'development', enabled: true },
+      { type: 'api', enabled: true },
+      { type: 'testing', enabled: true },
+    ],
+    diagrams: {
+      enabled: true,
+      types: ['architecture', 'dataflow'],
+    },
+    exclude: {
+      paths: ['node_modules/**', 'dist/**', 'build/**', '.git/**', '**/*.min.js', '**/*.min.css'],
+    },
+    generation: {
+      defaultModel: 'gemini-2.5-flash',
+      maxTokensPerSection: 2000,
+      parallelSections: 3,
+    },
+  };
+
   constructor(apiKey?: string) {
     if (apiKey) {
       this.genAI = new GoogleGenerativeAI(apiKey);
@@ -68,18 +144,62 @@ export class WikiGenerator {
   }
 
   /**
+   * Load configuration from .gemini/wiki.json if it exists
+   */
+  async loadConfig(repoPath: string): Promise<WikiConfig | null> {
+    const configPath = join(repoPath, '.gemini', 'wiki.json');
+
+    try {
+      const configContent = await fs.readFile(configPath, 'utf-8');
+      const userConfig = JSON.parse(configContent) as WikiConfig;
+      return userConfig;
+    } catch {
+      // No config file or can't read it
+      return null;
+    }
+  }
+
+  /**
+   * Merge user config with default config
+   */
+  mergeConfig(userConfig: WikiConfig | null): WikiConfig {
+    if (!userConfig) {
+      return this.DEFAULT_CONFIG;
+    }
+
+    // Deep merge the configs
+    const merged: WikiConfig = {
+      version: userConfig.version || this.DEFAULT_CONFIG.version,
+      metadata: { ...this.DEFAULT_CONFIG.metadata, ...userConfig.metadata },
+      repoNotes: userConfig.repoNotes,
+      sections: userConfig.sections || this.DEFAULT_CONFIG.sections,
+      diagrams: {
+        ...this.DEFAULT_CONFIG.diagrams,
+        ...userConfig.diagrams,
+      },
+      exclude: {
+        paths: [
+          ...(this.DEFAULT_CONFIG.exclude?.paths || []),
+          ...(userConfig.exclude?.paths || []),
+        ],
+      },
+      generation: {
+        ...this.DEFAULT_CONFIG.generation!,
+        ...userConfig.generation,
+      },
+    };
+
+    return merged;
+  }
+
+  /**
    * Generate comprehensive wiki documentation
    */
   async generate(
     analysis: RepositoryAnalysis,
+    repoPath: string,
     options?: WikiGenerationOptions
   ): Promise<WikiResult> {
-    const {
-      model = 'gemini-2.5-flash',
-      sections = this.DEFAULT_SECTIONS,
-      includeDiagrams = true,
-    } = options || {};
-
     // Check if API key is available
     if (!this.genAI) {
       throw new Error(
@@ -87,15 +207,49 @@ export class WikiGenerator {
       );
     }
 
+    // Load and merge configuration
+    const userConfig = await this.loadConfig(repoPath);
+    const config = this.mergeConfig(userConfig);
+
+    // Options override config
+    const defaultModel = options?.model || config.generation?.defaultModel || 'gemini-2.5-flash';
+    const includeDiagrams = options?.includeDiagrams ?? config.diagrams?.enabled ?? true;
+
+    // Determine sections to generate
+    const sectionsToGenerate = options?.sections
+      ? config.sections?.filter((s) => options.sections!.includes(s.type))
+      : config.sections?.filter((s) => s.enabled !== false);
+
+    if (!sectionsToGenerate || sectionsToGenerate.length === 0) {
+      throw new Error('No sections to generate. Check your configuration.');
+    }
+
     let totalTokens = 0;
     const generatedSections: WikiSection[] = [];
     const generatedDiagrams: MermaidDiagram[] = [];
 
+    // Enhance analysis with config metadata and notes
+    const enhancedAnalysis = {
+      ...analysis,
+      metadata: {
+        ...analysis.metadata,
+        ...(config.metadata?.title && { name: config.metadata.title }),
+        ...(config.metadata?.description && { description: config.metadata.description }),
+      },
+    };
+
     // Generate sections
-    for (let i = 0; i < sections.length; i++) {
-      const sectionType = sections[i];
+    for (let i = 0; i < sectionsToGenerate.length; i++) {
+      const sectionConfig = sectionsToGenerate[i];
+      const sectionModel = sectionConfig.model || defaultModel;
+
       try {
-        const section = await this.generateSection(sectionType, analysis, model);
+        const section = await this.generateSectionFromConfig(
+          sectionConfig,
+          enhancedAnalysis,
+          sectionModel,
+          config.repoNotes
+        );
         generatedSections.push({
           ...section,
           order: i,
@@ -104,10 +258,10 @@ export class WikiGenerator {
         // Rough token estimation (will be more accurate with actual API response)
         totalTokens += this.estimateTokens(section.content);
       } catch (error) {
-        console.error(`Failed to generate section ${sectionType}:`, error);
+        console.error(`Failed to generate section ${sectionConfig.type}:`, error);
         // Continue with other sections
         generatedSections.push({
-          title: this.formatSectionTitle(sectionType),
+          title: sectionConfig.title || this.formatSectionTitle(sectionConfig.type),
           content: `*Section generation failed: ${error instanceof Error ? error.message : 'Unknown error'}*`,
           order: i,
         });
@@ -115,12 +269,12 @@ export class WikiGenerator {
     }
 
     // Generate diagrams
-    if (includeDiagrams) {
-      const diagramTypes: Array<'architecture' | 'dataflow'> = ['architecture', 'dataflow'];
+    if (includeDiagrams && config.diagrams?.types) {
+      const diagramTypes = config.diagrams.types;
 
       for (const diagramType of diagramTypes) {
         try {
-          const diagram = await this.generateDiagram(diagramType, analysis, model);
+          const diagram = await this.generateDiagram(diagramType, enhancedAnalysis, defaultModel);
           generatedDiagrams.push(diagram);
           totalTokens += this.estimateTokens(diagram.syntax);
         } catch (error) {
@@ -131,16 +285,18 @@ export class WikiGenerator {
     }
 
     // Calculate estimated cost (rough approximation)
-    const estimatedCost = this.estimateCost(totalTokens, model);
+    const estimatedCost = this.estimateCost(totalTokens, defaultModel);
 
     return {
-      title: analysis.metadata.name,
-      description: analysis.metadata.description || `Documentation for ${analysis.metadata.name}`,
+      title: enhancedAnalysis.metadata.name,
+      description:
+        enhancedAnalysis.metadata.description ||
+        `Documentation for ${enhancedAnalysis.metadata.name}`,
       sections: generatedSections,
       diagrams: generatedDiagrams,
       metadata: {
         generatedAt: new Date().toISOString(),
-        model,
+        model: defaultModel,
         totalTokens,
         estimatedCost,
       },
@@ -148,7 +304,69 @@ export class WikiGenerator {
   }
 
   /**
-   * Generate a single wiki section
+   * Generate a section from configuration (supports custom sections)
+   */
+  private async generateSectionFromConfig(
+    sectionConfig: SectionConfig,
+    analysis: RepositoryAnalysis,
+    modelName: string,
+    repoNotes?: string
+  ): Promise<WikiSection> {
+    if (!this.genAI) {
+      throw new Error('Gemini API not initialized');
+    }
+
+    let prompt: string;
+
+    // If custom prompt is provided, use it
+    if (sectionConfig.prompt) {
+      prompt = this.buildCustomPrompt(sectionConfig.prompt, analysis, repoNotes);
+    } else {
+      // Use standard prompt builder
+      prompt = this.promptBuilder.buildSectionPrompt(sectionConfig.type, analysis);
+      // Add repo notes if provided
+      if (repoNotes) {
+        prompt += `\n\nAdditional Repository Context:\n${repoNotes}`;
+      }
+    }
+
+    const model = this.genAI.getGenerativeModel({ model: modelName });
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const content = response.text();
+
+    return {
+      title: sectionConfig.title || this.formatSectionTitle(sectionConfig.type),
+      content: content.trim(),
+      order: 0, // Will be set by caller
+    };
+  }
+
+  /**
+   * Build a custom prompt with variable substitution
+   */
+  private buildCustomPrompt(
+    customPrompt: string,
+    analysis: RepositoryAnalysis,
+    repoNotes?: string
+  ): string {
+    // Replace variables in custom prompt
+    let prompt = customPrompt;
+    prompt = prompt.replace(/\{NAME\}/g, analysis.metadata.name);
+    prompt = prompt.replace(/\{LANGUAGE\}/g, analysis.techStack.primaryLanguage);
+    prompt = prompt.replace(/\{FRAMEWORKS\}/g, analysis.techStack.frameworks.join(', '));
+    prompt = prompt.replace(/\{DESCRIPTION\}/g, analysis.metadata.description || '');
+
+    // Add repo notes if provided
+    if (repoNotes) {
+      prompt += `\n\nAdditional Repository Context:\n${repoNotes}`;
+    }
+
+    return prompt;
+  }
+
+  /**
+   * Generate a single wiki section (legacy method for backwards compatibility)
    */
   async generateSection(
     sectionType: string,
