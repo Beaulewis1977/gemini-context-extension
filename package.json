@@ -25,6 +25,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@modelcontextprotocol/sdk": "^1.0.4",
+    "ignore": "^7.0.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {

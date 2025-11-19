@@ -3,6 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { ContextTracker } from './tools/context-tracker.js';
 import { CostEstimator } from './tools/cost-estimator.js';
+import { RepositoryAnalyzer } from './tools/repo-analyzer.js';
 
 const server = new McpServer({
   name: 'gemini-context-extension',
@@ -11,6 +12,7 @@ const server = new McpServer({
 
 const contextTracker = new ContextTracker();
 const costEstimator = new CostEstimator();
+const repoAnalyzer = new RepositoryAnalyzer();
 
 // Context Window Tracker Tool
 server.registerTool(
@@ -161,6 +163,54 @@ server.registerTool(
               null,
               2
             ),
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              error: error instanceof Error ? error.message : 'Unknown error',
+            }),
+          },
+        ],
+      };
+    }
+  }
+);
+
+// Repository Analyzer Tool
+server.registerTool(
+  'analyze_repository',
+  {
+    description:
+      'Analyze repository structure, tech stack, and statistics. Detects languages, frameworks, dependencies, and provides comprehensive codebase insights without using AI.',
+    inputSchema: z.object({
+      repoPath: z.string().describe('Absolute path to repository to analyze'),
+      includeStats: z
+        .boolean()
+        .optional()
+        .describe('Include detailed statistics like line counts (default: true)'),
+      maxDepth: z
+        .number()
+        .optional()
+        .describe('Maximum directory depth to scan (default: 10)'),
+    }).shape,
+  },
+  async (params) => {
+    try {
+      const analysis = await repoAnalyzer.analyze(params.repoPath, {
+        includeStats: params.includeStats ?? true,
+        maxDepth: params.maxDepth ?? 10,
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(analysis, null, 2),
           },
         ],
       };
