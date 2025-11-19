@@ -244,14 +244,15 @@ Generate the directory structure diagram now:`,
     const traverse = (nodes: typeof directories, prefix: string = '', depth: number = 0) => {
       if (depth > 2 || lines.length > 20) return; // Limit sample size
 
-      for (let i = 0; i < Math.min(nodes.length, 10); i++) {
-        const node = nodes[i];
-        const isLast = i === nodes.length - 1;
+      const limitedNodes = nodes.slice(0, 10); // Only process first 10
+      for (let i = 0; i < limitedNodes.length; i++) {
+        const node = limitedNodes[i];
+        const isLast = i === limitedNodes.length - 1; // Check against limited array
         const marker = isLast ? '└── ' : '├── ';
 
         lines.push(`${prefix}${marker}${node.name}${node.type === 'directory' ? '/' : ''}`);
 
-        if (node.children && node.children.length > 0 && depth < 2) {
+        if (node.children && node.children.length > 0 && depth < 2 && lines.length < 20) {
           const newPrefix = prefix + (isLast ? '    ' : '│   ');
           traverse(node.children, newPrefix, depth + 1);
         }
@@ -268,17 +269,22 @@ Generate the directory structure diagram now:`,
   private inferProjectType(techStack: RepositoryAnalysis['techStack']): string {
     const frameworks = techStack.frameworks.map((f: string) => f.toLowerCase());
 
-    if (frameworks.some((f: string) => ['react', 'vue', 'angular', 'svelte'].includes(f))) {
+    // Check for frameworks (normalized to lowercase)
+    if (
+      frameworks.some((f: string) => ['react', 'vue', 'vue.js', 'angular', 'svelte'].includes(f))
+    ) {
       return 'Frontend Application';
     }
     if (
       frameworks.some((f: string) =>
-        ['express', 'fastify', 'koa', 'nestjs', 'django', 'fastapi', 'flask'].includes(f)
+        ['express', 'fastify', 'koa', 'nestjs', 'django', 'fastapi', 'flask', 'tornado'].includes(f)
       )
     ) {
       return 'Backend API';
     }
-    if (frameworks.some((f: string) => ['next', 'nuxt', 'gatsby', 'remix'].includes(f))) {
+    if (
+      frameworks.some((f: string) => ['next.js', 'nuxt.js', 'gatsby', 'remix', 'astro'].includes(f))
+    ) {
       return 'Full-Stack Framework';
     }
     if (frameworks.some((f: string) => f.includes('mcp'))) {

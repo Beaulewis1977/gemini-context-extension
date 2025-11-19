@@ -9,8 +9,6 @@ export interface WikiGenerationOptions {
   model?: string; // Default: gemini-2.5-flash
   sections?: string[]; // Default: all sections
   includeDiagrams?: boolean; // Default: true
-  includeCodeExamples?: boolean; // Default: true
-  maxTokensPerSection?: number; // Default: 2000
 }
 
 /**
@@ -53,7 +51,14 @@ export interface WikiResult {
 export class WikiGenerator {
   private genAI: GoogleGenerativeAI | null = null;
   private promptBuilder: PromptBuilder;
-  private readonly DEFAULT_SECTIONS = ['overview', 'architecture', 'setup', 'development', 'api', 'testing'];
+  private readonly DEFAULT_SECTIONS = [
+    'overview',
+    'architecture',
+    'setup',
+    'development',
+    'api',
+    'testing',
+  ];
 
   constructor(apiKey?: string) {
     if (apiKey) {
@@ -187,13 +192,13 @@ export class WikiGenerator {
     const response = result.response;
     let content = response.text().trim();
 
-    // Extract Mermaid code from markdown code blocks if present
-    const mermaidMatch = content.match(/```mermaid\n([\s\S]*?)```/);
+    // Extract Mermaid code from markdown code blocks if present (handle different line endings)
+    const mermaidMatch = content.match(/```\s*mermaid\s*[\r\n]+([\s\S]*?)```/i);
     if (mermaidMatch) {
       content = mermaidMatch[1].trim();
     } else {
       // Remove any other code block markers
-      content = content.replace(/```[\s\S]*?\n/, '').replace(/```$/, '');
+      content = content.replace(/```[\s\S]*?[\r\n]+/, '').replace(/```\s*$/, '');
     }
 
     return {
@@ -252,15 +257,20 @@ export class WikiGenerator {
 
   /**
    * Estimate cost based on tokens and model
+   * Note: Uses simplified flat-rate pricing for estimation
+   * For tiered pricing, use CostEstimator class
    */
   private estimateCost(tokens: number, model: string): number {
-    // Pricing per 1M tokens (as of Nov 2025)
+    // Simplified pricing per 1M tokens (as of Nov 2025)
+    // For full pricing with tiers, use cost-estimator.ts
     const pricing: Record<string, { input: number; output: number }> = {
-      'gemini-2.5-pro': { input: 1.25, output: 10.0 },
+      'gemini-2.5-pro': { input: 1.25, output: 10.0 }, // Simplified (actual has tiers)
       'gemini-2.5-flash': { input: 0.3, output: 2.5 },
       'gemini-2.5-flash-lite': { input: 0.1, output: 0.4 },
-      'gemini-1.5-pro': { input: 1.25, output: 5.0 },
-      'gemini-1.5-flash': { input: 0.075, output: 0.3 },
+      'gemini-3-pro-preview': { input: 0.002, output: 0.012 }, // Simplified (actual has tiers)
+      'gemini-2.0-flash-exp': { input: 0.1, output: 0.4 },
+      'gemini-1.5-pro': { input: 1.25, output: 5.0 }, // Simplified (actual has tiers)
+      'gemini-1.5-flash': { input: 0.075, output: 0.3 }, // Simplified (actual has tiers)
     };
 
     const modelPricing = pricing[model] || pricing['gemini-2.5-flash'];
@@ -294,10 +304,14 @@ export class WikiGenerator {
     lines.push(`**Model:** ${wiki.metadata.model}`);
     lines.push(`**Estimated Cost:** $${wiki.metadata.estimatedCost.toFixed(6)}\n`);
 
-    // Table of Contents
+    // Table of Contents (use spread to avoid mutation)
+    const sortedSections = [...wiki.sections].sort((a, b) => a.order - b.order);
     lines.push('## Table of Contents\n');
-    for (const section of wiki.sections.sort((a, b) => a.order - b.order)) {
-      const anchor = section.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    for (const section of sortedSections) {
+      const anchor = section.title
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-]/g, '');
       lines.push(`- [${section.title}](#${anchor})`);
     }
     if (wiki.diagrams.length > 0) {
@@ -306,7 +320,7 @@ export class WikiGenerator {
     lines.push('');
 
     // Sections
-    for (const section of wiki.sections.sort((a, b) => a.order - b.order)) {
+    for (const section of sortedSections) {
       lines.push(`## ${section.title}\n`);
       lines.push(`${section.content}\n`);
     }

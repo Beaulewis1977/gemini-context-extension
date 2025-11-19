@@ -7,12 +7,13 @@
 
 ## What It Does
 
-This extension adds four powerful tools to your Gemini CLI that solve critical visibility gaps:
+This extension adds five powerful tools to your Gemini CLI that solve critical visibility gaps:
 
 1. **Context Window Tracker** - Real-time monitoring of your token usage and context capacity across all Gemini models
 2. **Cost Estimator** - Accurate API cost calculations with comprehensive model comparisons and savings analysis
 3. **Model Comparison** - Side-by-side comparison of all Gemini models with pricing, context windows, and cost estimates
 4. **Repository Analyzer** - Comprehensive codebase analysis with tech stack detection, language statistics, and file categorization
+5. **Wiki Generator** - AI-powered documentation generation with Mermaid diagrams and customizable sections
 
 ### Why You Need This
 
@@ -62,6 +63,16 @@ This extension adds four powerful tools to your Gemini CLI that solve critical v
 - **Framework Detection**: Identifies React, Next.js, Vue, Django, FastAPI, Express, and 20+ other frameworks
 - **No AI Required**: Pure filesystem analysis for instant results
 
+### 📝 Wiki Generator
+
+- **AI-Powered Documentation**: Generate comprehensive documentation using Gemini AI
+- **Multiple Sections**: Overview, architecture, setup, development, API reference, testing
+- **Mermaid Diagrams**: Automatically create architecture, dataflow, and directory structure diagrams
+- **Customizable**: Choose specific sections and Gemini models (2.5-flash, 2.5-pro, etc.)
+- **Cost Estimation**: See estimated API costs before generation
+- **Markdown Output**: Get ready-to-use markdown documentation with table of contents
+- **Requires API Key**: Set `GEMINI_API_KEY` environment variable (free at Google AI Studio)
+
 ## Installation
 
 ### Prerequisites
@@ -104,7 +115,7 @@ gemini
 /tools list
 ```
 
-You should see `track_context_usage`, `estimate_api_cost`, `compare_gemini_models`, and `analyze_repository` in the list.
+You should see `track_context_usage`, `estimate_api_cost`, `compare_gemini_models`, `analyze_repository`, and `generate_repository_wiki` in the list.
 
 ## Usage
 
@@ -209,7 +220,7 @@ The tool will provide:
 ```
 
 **Example output:**
-```json
+```jsonc
 {
   "metadata": {
     "name": "my-project",
@@ -239,6 +250,41 @@ The tool will provide:
   }
 }
 ```
+
+### Wiki Generator
+
+Generate comprehensive documentation for any repository using AI:
+
+```bash
+> Generate wiki documentation for /path/to/my-project
+> Create wiki using gemini-2.5-pro model
+> Generate only overview and architecture sections
+```
+
+**Advanced usage:**
+
+```bash
+> Generate wiki for this repository with diagrams
+> Create documentation in JSON format
+```
+
+The tool will:
+- Analyze the repository structure and tech stack
+- Generate detailed documentation sections using Gemini AI
+- Create Mermaid diagrams for visualization
+- Compile everything into markdown format
+
+**Example output:** Markdown document with:
+- Table of contents
+- Overview and project description
+- Architecture and design patterns
+- Setup and installation instructions
+- Development guide and best practices
+- API reference and documentation
+- Testing guide and strategies
+- Mermaid diagrams (architecture, dataflow, directory structure)
+
+**Note:** Requires `GEMINI_API_KEY` environment variable. Get a free key at [Google AI Studio](https://aistudio.google.com/app/apikey).
 
 ## Supported Models
 
@@ -407,11 +453,13 @@ gemini-context-extension/
 │   ├── tools/
 │   │   ├── context-tracker.ts    # Context analysis tool
 │   │   ├── cost-estimator.ts     # Cost estimation tool
-│   │   └── repo-analyzer.ts      # Repository analyzer tool
+│   │   ├── repo-analyzer.ts      # Repository analyzer tool
+│   │   └── wiki-generator.ts     # Wiki generator tool
 │   └── utils/
 │       ├── token-counter.ts      # Token estimation utilities
 │       ├── project-detection.ts  # Gemini directory finder
-│       └── file-scanner.ts       # Filesystem scanning utilities
+│       ├── file-scanner.ts       # Filesystem scanning utilities
+│       └── prompt-builder.ts     # AI prompt construction
 ├── dist/                         # Compiled JavaScript (generated)
 ├── gemini-extension.json         # Extension manifest
 ├── GEMINI.md                     # Context instructions
@@ -466,7 +514,7 @@ npm run prepare
    ```
    /tools list
    ```
-   Look for `track_context_usage`, `estimate_api_cost`, `compare_gemini_models`, and `analyze_repository`.
+   Look for `track_context_usage`, `estimate_api_cost`, `compare_gemini_models`, `analyze_repository`, and `generate_repository_wiki`.
 
 2. **Check MCP Server Logs**:
    The server logs to stderr. Check your terminal for error messages.

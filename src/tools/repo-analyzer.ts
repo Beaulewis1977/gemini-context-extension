@@ -255,10 +255,10 @@ export class RepositoryAnalyzer {
       const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf-8'));
       packageManagers.push('npm');
 
-      // Extract dependencies
+      // Extract dependencies (guard against undefined)
       const allDeps = {
-        ...packageJson.dependencies,
-        ...packageJson.devDependencies,
+        ...(packageJson.dependencies || {}),
+        ...(packageJson.devDependencies || {}),
       };
 
       for (const [name, version] of Object.entries(allDeps)) {
@@ -346,10 +346,7 @@ export class RepositoryAnalyzer {
   /**
    * Detect Node.js frameworks from dependencies
    */
-  private detectNodeFrameworks(
-    dependencies: Record<string, unknown>,
-    frameworks: string[]
-  ): void {
+  private detectNodeFrameworks(dependencies: Record<string, unknown>, frameworks: string[]): void {
     const frameworkDetection: Record<string, string> = {
       react: 'React',
       'react-dom': 'React',

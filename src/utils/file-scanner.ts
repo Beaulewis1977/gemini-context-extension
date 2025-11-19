@@ -42,24 +42,22 @@ export type FileType =
  * Scanner for analyzing file system structure and content
  */
 export class FileScanner {
-  private ignoreFilter: ReturnType<typeof ignore> | null = null;
-  private gitignorePath: string | null = null;
-
   /**
    * Scans a directory and returns its tree structure
+   * @param dirPath - Absolute path to the directory to scan
+   * @param options - Scanning options (maxDepth, includeStats, respectGitignore)
+   * @returns Array of directory nodes representing the file tree
    */
-  async scanDirectory(
-    dirPath: string,
-    options: ScanOptions = {}
-  ): Promise<DirectoryNode[]> {
+  async scanDirectory(dirPath: string, options: ScanOptions = {}): Promise<DirectoryNode[]> {
     const { maxDepth = 10, includeStats = true, respectGitignore = true } = options;
 
-    // Load .gitignore if needed
+    // Load .gitignore if needed (create local filter to avoid shared state)
+    let ignoreFilter: ReturnType<typeof ignore> | null = null;
     if (respectGitignore) {
-      await this.loadGitignore(dirPath);
+      ignoreFilter = await this.loadGitignore(dirPath);
     }
 
-    return this.scanRecursive(dirPath, dirPath, 0, maxDepth, includeStats);
+    return this.scanRecursive(dirPath, dirPath, 0, maxDepth, includeStats, ignoreFilter);
   }
 
   /**
@@ -70,7 +68,8 @@ export class FileScanner {
     currentPath: string,
     depth: number,
     maxDepth: number,
-    includeStats: boolean
+    includeStats: boolean,
+    ignoreFilter: ReturnType<typeof ignore> | null
   ): Promise<DirectoryNode[]> {
     if (depth > maxDepth) {
       return [];
@@ -85,7 +84,7 @@ export class FileScanner {
         const relativePath = relative(rootPath, fullPath);
 
         // Check if should be ignored
-        if (this.shouldIgnore(relativePath)) {
+        if (this.shouldIgnore(relativePath, ignoreFilter)) {
           continue;
         }
 
@@ -100,7 +99,8 @@ export class FileScanner {
             fullPath,
             depth + 1,
             maxDepth,
-            includeStats
+            includeStats,
+            ignoreFilter
           );
 
           nodes.push({
@@ -147,30 +147,37 @@ export class FileScanner {
   }
 
   /**
-   * Load .gitignore file and initialize ignore filter
+   * Load .gitignore file and create an ignore filter
+   * @param rootPath - Root directory to search for .gitignore
+   * @returns Ignore filter instance or null if no .gitignore found
    */
-  private async loadGitignore(rootPath: string): Promise<void> {
+  private async loadGitignore(rootPath: string): Promise<ReturnType<typeof ignore> | null> {
     const gitignorePath = join(rootPath, '.gitignore');
 
     try {
       const gitignoreContent = await fs.readFile(gitignorePath, 'utf-8');
-      this.ignoreFilter = ignore().add(gitignoreContent);
-      this.gitignorePath = rootPath;
+      return ignore().add(gitignoreContent);
     } catch {
       // No .gitignore file or can't read it
-      this.ignoreFilter = null;
+      return null;
     }
   }
 
   /**
    * Check if a path should be ignored based on .gitignore patterns
+   * @param relativePath - Path relative to repository root
+   * @param ignoreFilter - Ignore filter instance to use
+   * @returns True if path should be ignored
    */
-  shouldIgnore(relativePath: string): boolean {
-    if (!this.ignoreFilter) {
+  private shouldIgnore(
+    relativePath: string,
+    ignoreFilter: ReturnType<typeof ignore> | null
+  ): boolean {
+    if (!ignoreFilter) {
       return false;
     }
 
-    return this.ignoreFilter.ignores(relativePath);
+    return ignoreFilter.ignores(relativePath);
   }
 
   /**
@@ -280,10 +287,10 @@ export class FileScanner {
 
     // Special filename cases
     const specialFiles: Record<string, string> = {
-      'dockerfile': 'Dockerfile',
-      'makefile': 'Makefile',
-      'rakefile': 'Ruby',
-      'gemfile': 'Ruby',
+      dockerfile: 'Dockerfile',
+      makefile: 'Makefile',
+      rakefile: 'Ruby',
+      gemfile: 'Ruby',
       'cargo.toml': 'TOML',
       'go.mod': 'Go Module',
       'go.sum': 'Go Module',
@@ -379,17 +386,50 @@ export class FileScanner {
       '.tsx',
       '.js',
       '.jsx',
+      '.mjs',
+      '.cjs',
       '.py',
+      '.pyw',
       '.java',
       '.go',
       '.rs',
       '.c',
+      '.h',
       '.cpp',
+      '.cc',
+      '.cxx',
+      '.hpp',
       '.cs',
       '.rb',
       '.php',
       '.swift',
       '.kt',
+      '.kts',
+      '.scala',
+      '.r',
+      '.sh',
+      '.bash',
+      '.ps1',
+      '.vue',
+      '.svelte',
+      '.dart',
+      '.lua',
+      '.pl',
+      '.ex',
+      '.exs',
+      '.erl',
+      '.hrl',
+      '.clj',
+      '.cljs',
+      '.elm',
+      '.hs',
+      '.ml',
+      '.fs',
+      '.jl',
+      '.nim',
+      '.zig',
+      '.v',
+      '.sol',
     ];
 
     if (codeExtensions.includes(ext)) {

@@ -198,10 +198,7 @@ server.registerTool(
         .boolean()
         .optional()
         .describe('Include detailed statistics like line counts (default: true)'),
-      maxDepth: z
-        .number()
-        .optional()
-        .describe('Maximum directory depth to scan (default: 10)'),
+      maxDepth: z.number().optional().describe('Maximum directory depth to scan (default: 10)'),
     }).shape,
   },
   async (params) => {
@@ -254,14 +251,13 @@ server.registerTool(
         .describe(
           'Specific sections to generate (default: all). Options: overview, architecture, setup, development, api, testing'
         ),
-      includeDiagrams: z
-        .boolean()
-        .optional()
-        .describe('Include Mermaid diagrams (default: true)'),
+      includeDiagrams: z.boolean().optional().describe('Include Mermaid diagrams (default: true)'),
       outputFormat: z
         .enum(['json', 'markdown'])
         .optional()
-        .describe('Output format: json (structured data) or markdown (compiled document). Default: markdown'),
+        .describe(
+          'Output format: json (structured data) or markdown (compiled document). Default: markdown'
+        ),
     }).shape,
   },
   async (params) => {
@@ -298,7 +294,9 @@ server.registerTool(
       // Return in requested format
       const outputFormat = params.outputFormat || 'markdown';
       const output =
-        outputFormat === 'markdown' ? wikiGenerator.compileMarkdown(wiki) : JSON.stringify(wiki, null, 2);
+        outputFormat === 'markdown'
+          ? wikiGenerator.compileMarkdown(wiki)
+          : JSON.stringify(wiki, null, 2);
 
       return {
         content: [
@@ -309,13 +307,19 @@ server.registerTool(
         ],
       };
     } catch (error) {
+      // Log detailed error server-side
+      console.error('Wiki generation error:', error);
+
+      // Return sanitized error to client
       return {
         content: [
           {
             type: 'text',
             text: JSON.stringify({
-              error: error instanceof Error ? error.message : 'Unknown error',
-              stack: error instanceof Error ? error.stack : undefined,
+              error:
+                error instanceof Error
+                  ? error.message
+                  : 'Unknown error occurred during wiki generation',
             }),
           },
         ],
