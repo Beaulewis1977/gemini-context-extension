@@ -1,7 +1,7 @@
 # Repository Wiki Generator - Implementation Plan
 
 **Version:** 1.0
-**Date:** 2025-11-19
+**Date:** 2024-11-19
 **Status:** Planning Phase
 
 ---
@@ -68,7 +68,7 @@ This plan outlines the implementation of a **repository wiki generator** as an M
 
 ### High-Level Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                         Gemini CLI                               │
 │  (User asks: "Generate wiki for my-project")                     │
@@ -119,7 +119,7 @@ This plan outlines the implementation of a **repository wiki generator** as an M
 
 ### Data Flow
 
-```
+```text
 1. User Request
    ↓
 2. MCP Tool Invocation (analyze_repository)
@@ -409,7 +409,7 @@ server.registerTool(
 
 **Section Prompt Template:**
 
-```
+```text
 You are a technical documentation expert. Generate a comprehensive {SECTION_TYPE} section for the following repository.
 
 Repository Context:
@@ -440,7 +440,7 @@ Generate the {SECTION_TYPE} section now:
 
 **Diagram Prompt Template:**
 
-```
+```text
 Create a Mermaid diagram showing the {DIAGRAM_TYPE} for this repository.
 
 Repository: {NAME}
@@ -821,7 +821,7 @@ server.registerTool(
 ```
 
 **Example Usage:**
-```
+```text
 User: "Analyze the repository at /home/user/my-project"
 Gemini invokes: analyze_repository({ repoPath: "/home/user/my-project" })
 ```
@@ -857,7 +857,7 @@ Gemini invokes: analyze_repository({ repoPath: "/home/user/my-project" })
 ```
 
 **Example Usage:**
-```
+```text
 User: "Generate a wiki for my project using Gemini 3 Pro"
 Gemini invokes: generate_repository_wiki({
   repoPath: "/home/user/my-project",
@@ -911,7 +911,7 @@ Gemini invokes: generate_repository_wiki({
 ```
 
 **Example Usage:**
-```
+```text
 User: "How does authentication work in this project?"
 Gemini invokes: search_repository({
   repoPath: "/home/user/my-project",
@@ -925,7 +925,7 @@ Gemini invokes: search_repository({
 
 ### After Full Implementation
 
-```
+```text
 gemini-context-extension/
 ├── src/
 │   ├── server.ts                      # Updated with new tools
@@ -1013,6 +1013,47 @@ gemini-context-extension/
 **Phase 4 (Embeddings):**
 - Indexing: ~$0.01 per 100k tokens
 - Search queries: negligible
+
+### Cost Calculation Examples
+
+**Example 1: Medium Repository with Gemini 2.5 Flash**
+
+Token Usage:
+- Repository analysis: 50,000 tokens (input)
+- Wiki generation: 100,000 tokens (input) + 30,000 tokens (output)
+- Diagram generation: 20,000 tokens (input) + 5,000 tokens (output)
+- **Total Input:** 170,000 tokens
+- **Total Output:** 35,000 tokens
+
+Cost Calculation:
+- Input cost: (170,000 / 1,000,000) × $0.0003 = $0.000051
+- Output cost: (35,000 / 1,000,000) × $0.0025 = $0.0000875
+- **Total:** $0.0001385 ≈ **$0.00014**
+
+**Example 2: Large Repository with Gemini 3 Pro (≤200k tokens)**
+
+Token Usage:
+- Repository analysis: 200,000 tokens (input)
+- Wiki generation: 300,000 tokens (input) + 50,000 tokens (output)
+- Diagram generation: 50,000 tokens (input) + 10,000 tokens (output)
+- **Total Input:** 550,000 tokens (exceeds 200k threshold)
+- **Total Output:** 60,000 tokens
+
+Cost Calculation:
+- First 200k input tokens: (200,000 / 1,000,000) × $0.002 = $0.0004
+- Remaining 350k input tokens: (350,000 / 1,000,000) × $0.004 = $0.0014
+- First 200k output tokens (all fit): (60,000 / 1,000,000) × $0.012 = $0.00072
+- **Total:** $0.0004 + $0.0014 + $0.00072 = **$0.00252**
+
+**Example 3: Embedding Index for Large Repository**
+
+Token Usage:
+- Code chunks: 500,000 tokens
+- Embedding model: text-embedding-004
+
+Cost Calculation:
+- Embedding cost: (500,000 / 1,000,000) × $0.0001 = $0.00005
+- **Total:** **$0.00005** (one-time indexing cost)
 
 ### Cost Optimization Strategies
 
@@ -1171,23 +1212,23 @@ const DEFAULT_CONFIG: WikiConfig = {
 ## References
 
 ### Devin AI Deepwiki
-- **Documentation:** https://docs.devin.ai/work-with-devin/deepwiki
-- **Open Source:** https://github.com/AsyncFuncAI/deepwiki-open
-- **Blog Post:** https://www.marktechpost.com/2025/04/27/devin-ai-introduces-deepwiki/
+- **Documentation:** [https://docs.devin.ai/work-with-devin/deepwiki](https://docs.devin.ai/work-with-devin/deepwiki)
+- **Open Source:** [https://github.com/AsyncFuncAI/deepwiki-open](https://github.com/AsyncFuncAI/deepwiki-open)
+- **Blog Post:** [https://www.marktechpost.com/devin-ai-introduces-deepwiki](https://www.marktechpost.com/devin-ai-introduces-deepwiki)
 
 ### Gemini API Documentation
-- **Generative AI SDK:** https://ai.google.dev/gemini-api/docs
-- **Embeddings API:** https://ai.google.dev/gemini-api/docs/embeddings
-- **Pricing:** https://ai.google.dev/pricing
+- **Generative AI SDK:** [https://ai.google.dev/gemini-api/docs](https://ai.google.dev/gemini-api/docs)
+- **Embeddings API:** [https://ai.google.dev/gemini-api/docs/embeddings](https://ai.google.dev/gemini-api/docs/embeddings)
+- **Pricing:** [https://ai.google.dev/pricing](https://ai.google.dev/pricing)
 
 ### MCP Protocol
-- **Specification:** https://spec.modelcontextprotocol.io/
-- **SDK Documentation:** https://github.com/modelcontextprotocol/sdk
+- **Specification:** [https://spec.modelcontextprotocol.io/](https://spec.modelcontextprotocol.io/)
+- **SDK Documentation:** [https://github.com/modelcontextprotocol/sdk](https://github.com/modelcontextprotocol/sdk)
 
 ### Related Technologies
-- **Mermaid.js:** https://mermaid.js.org/
-- **LangChain:** https://js.langchain.com/
-- **Tree-sitter:** https://tree-sitter.github.io/ (for AST parsing)
+- **Mermaid.js:** [https://mermaid.js.org/](https://mermaid.js.org/)
+- **LangChain:** [https://js.langchain.com/](https://js.langchain.com/)
+- **Tree-sitter:** [https://tree-sitter.github.io/](https://tree-sitter.github.io/) (for AST parsing)
 
 ---
 

@@ -71,6 +71,22 @@ Implement a repository analyzer that extracts structural information WITHOUT usi
 ### Data Structure (from Plan)
 
 ```typescript
+export interface AnalyzerOptions {
+  includeStats?: boolean;
+  maxDepth?: number;
+}
+
+export interface DirectoryNode {
+  name: string;
+  path: string;
+  type: 'file' | 'directory';
+  depth: number;
+  children?: DirectoryNode[];
+  size?: number;
+  lines?: number;
+  language?: string;
+}
+
 export interface RepositoryAnalysis {
   metadata: {
     name: string;
@@ -109,11 +125,11 @@ server.registerTool(
   'analyze_repository',
   {
     description: 'Analyze repository structure, tech stack, and statistics',
-    inputSchema: z.object({
+    inputSchema: {
       repoPath: z.string().describe('Absolute path to repository'),
       includeStats: z.boolean().optional().describe('Include detailed statistics (default: true)'),
       maxDepth: z.number().optional().describe('Maximum directory depth to scan (default: 10)'),
-    }).shape,
+    },
   },
   async (params) => {
     try {
@@ -260,7 +276,7 @@ Expected output: Valid JSON matching `RepositoryAnalysis` interface
 
 ## Questions to Resolve During Implementation
 
-1. How should we handle very large repositories? (Add progress logging?)
+1. How should we handle repositories exceeding 100k LOC? (Add progress logging?)
 2. Should we cache analysis results? (Not required for Phase 1)
 3. What file extensions map to which languages? (Create comprehensive mapping)
 4. How deep should we scan by default? (Plan suggests 10, but verify performance)
