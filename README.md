@@ -385,6 +385,44 @@ The indexer will:
 - Repository must be indexed first using `index_repository` tool
 - Embeddings cached locally for fast subsequent searches
 
+## 📚 Documentation
+
+Comprehensive documentation is available in the [`docs/`](docs/) directory:
+
+### Getting Started
+- **[Installation Guide](docs/getting-started/INSTALLATION.md)** - Detailed installation instructions for all platforms
+- **[Quick Start](docs/getting-started/QUICK_START.md)** - 5-minute guide to get up and running
+- **[Configuration](docs/getting-started/CONFIGURATION.md)** - API keys, wiki config, and settings
+
+### User Guides
+- **[Tools Overview](docs/user-guide/TOOLS_OVERVIEW.md)** - Complete reference for all 7 tools
+- **[Repository Analysis](docs/user-guide/REPOSITORY_ANALYSIS.md)** - How to analyze codebases
+- **[Wiki Generation](docs/user-guide/WIKI_GENERATION.md)** - Creating AI-powered documentation
+- **[Semantic Search](docs/user-guide/SEMANTIC_SEARCH.md)** - Natural language code search
+- **[Context Tracking](docs/user-guide/CONTEXT_TRACKING.md)** - Monitor token usage
+- **[Cost Estimation](docs/user-guide/COST_ESTIMATION.md)** - Calculate API costs
+- **[Examples](docs/user-guide/EXAMPLES.md)** - Real-world usage examples
+
+### Architecture & Development
+- **[Architecture Overview](docs/architecture/OVERVIEW.md)** - System design and components
+- **[MCP Integration](docs/architecture/MCP_INTEGRATION.md)** - Protocol implementation details
+- **[Data Flow](docs/architecture/DATA_FLOW.md)** - How data flows through the system
+- **[API Design](docs/architecture/API_DESIGN.md)** - Internal API patterns
+
+### For Contributors
+- **[Development Setup](docs/development/SETUP.md)** - Set up your dev environment
+- **[Testing Guide](docs/development/TESTING.md)** - E2E tests with Jest
+- **[Contributing](docs/development/CONTRIBUTING.md)** - Contribution guidelines
+- **[Code Style](docs/development/CODE_STYLE.md)** - TypeScript style guide
+
+### API Reference
+- **[Tools API](docs/api-reference/TOOLS.md)** - Complete MCP tool API reference
+- **[Utilities](docs/api-reference/UTILITIES.md)** - Utility functions
+- **[Type Definitions](docs/api-reference/TYPE_DEFINITIONS.md)** - TypeScript types
+
+### Security
+- **[Security Audit](docs/audit/SECURITY_AUDIT.md)** - Comprehensive security review and findings
+
 ## Supported Models
 
 ### Gemini 2.5 Series (Latest - 2025)

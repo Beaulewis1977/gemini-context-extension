@@ -10,6 +10,10 @@
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
+    "test": "jest",
+    "test:e2e": "jest tests/e2e",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
     "prepare": "husky"
   },
   "keywords": [
@@ -29,12 +33,16 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@jest/globals": "^30.2.0",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.11.24",
     "@typescript-eslint/eslint-plugin": "^7.1.0",
     "@typescript-eslint/parser": "^7.1.0",
     "eslint": "^8.57.0",
     "husky": "^9.1.7",
+    "jest": "^30.2.0",
     "prettier": "^3.2.5",
+    "ts-jest": "^29.4.5",
     "typescript": "~5.5.4"
   }
 }
