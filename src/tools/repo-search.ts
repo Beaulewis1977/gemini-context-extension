@@ -274,10 +274,14 @@ export class RepositorySearch {
 
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        // Use getGenerativeModel for embedding generation
-        const embeddingModel = this.genAI.getGenerativeModel({ model });
-        const result = await embeddingModel.embedContent(text);
-        return result.embedding.values;
+        // Use models.embedContent for embedding generation
+        // Type assertion needed as the SDK types are incomplete
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const resp = await (this.genAI as any).models.embedContent({
+          model: `models/${model}`,
+          content: { parts: [{ text }] },
+        });
+        return resp.embeddings;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error('Unknown embedding error');
         console.error(`Embedding generation attempt ${attempt + 1} failed:`, error);
