@@ -99,11 +99,7 @@ export class CodeChunker {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
 
-      // Track brace depth
-      braceDepth += (line.match(/{/g) || []).length;
-      braceDepth -= (line.match(/}/g) || []).length;
-
-      // Check if this is a boundary line
+      // Check if this is a boundary line BEFORE updating depth
       const isBoundary = boundaryPatterns.some((pattern) => pattern.test(line));
 
       // If we hit a boundary and we're at depth 0, save current chunk and start new one
@@ -114,6 +110,12 @@ export class CodeChunker {
       }
 
       currentChunk.push(line);
+
+      // Track brace depth AFTER adding line (ignores strings/comments by using simple heuristic)
+      // This is still imperfect - a real solution needs AST parsing
+      const cleanedLine = this.removeStringsAndComments(line);
+      braceDepth += (cleanedLine.match(/{/g) || []).length;
+      braceDepth -= (cleanedLine.match(/}/g) || []).length;
 
       // Also chunk if we get too large (fallback to size-based chunking)
       if (currentChunk.join('\n').length > this.DEFAULT_MAX_CHUNK_SIZE) {
@@ -129,6 +131,23 @@ export class CodeChunker {
     }
 
     return chunks.length > 0 ? chunks : this.chunkFile(content, filePath, language);
+  }
+
+  /**
+   * Remove strings and comments from a line to avoid counting braces in them
+   * This is a simplified heuristic - not perfect but better than nothing
+   */
+  private removeStringsAndComments(line: string): string {
+    // Remove single-line comments
+    let cleaned = line.replace(/\/\/.*$/, ''); // JS/C++ style
+    cleaned = cleaned.replace(/#.*$/, ''); // Python/Shell style
+
+    // Remove string literals (simplified - doesn't handle all edge cases)
+    cleaned = cleaned.replace(/"([^"\\]|\\.)*"/g, ''); // Double quotes
+    cleaned = cleaned.replace(/'([^'\\]|\\.)*'/g, ''); // Single quotes
+    cleaned = cleaned.replace(/`([^`\\]|\\.)*`/g, ''); // Template literals
+
+    return cleaned;
   }
 
   /**
@@ -183,12 +202,24 @@ export class CodeChunker {
 
   /**
    * Count total chunks that would be created for a file
+   * Validates chunk size parameters to avoid division by zero or negative values
    */
   estimateChunkCount(
     content: string,
     maxChunkSize: number = this.DEFAULT_MAX_CHUNK_SIZE,
     overlap: number = this.DEFAULT_OVERLAP
   ): number {
+    // Validate parameters
+    if (maxChunkSize <= 0) {
+      throw new Error('maxChunkSize must be positive');
+    }
+    if (overlap < 0) {
+      throw new Error('overlap cannot be negative');
+    }
+    if (overlap >= maxChunkSize) {
+      throw new Error('overlap must be less than maxChunkSize');
+    }
+
     if (!this.shouldChunk(content, maxChunkSize)) {
       return 1;
     }

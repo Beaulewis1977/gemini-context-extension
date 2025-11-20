@@ -347,6 +347,12 @@ server.registerTool(
         .optional()
         .describe('Maximum chunk size in characters (default: 2000)'),
       model: z.string().optional().describe('Embedding model to use (default: text-embedding-004)'),
+      excludePatterns: z
+        .array(z.string())
+        .optional()
+        .describe(
+          'File patterns to exclude (glob patterns like "**/*.test.ts", default: empty array)'
+        ),
     }).shape,
   },
   async (params) => {
@@ -372,6 +378,7 @@ server.registerTool(
         force: params.force ?? false,
         maxChunkSize: params.maxChunkSize,
         model: params.model,
+        excludePatterns: params.excludePatterns,
       });
 
       return {
@@ -435,6 +442,7 @@ server.registerTool(
               text: JSON.stringify({
                 error:
                   'Repository search not available. Please set GEMINI_API_KEY environment variable.',
+                hint: 'Get a free API key at https://aistudio.google.com/app/apikey',
               }),
             },
           ],
@@ -442,7 +450,21 @@ server.registerTool(
       }
 
       // Validate topK
-      const topK = Math.min(params.topK || 5, 20);
+      const requestedK = params.topK || 5;
+      if (requestedK < 1) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                error: 'topK must be at least 1',
+                hint: 'Provide a positive number for topK parameter',
+              }),
+            },
+          ],
+        };
+      }
+      const topK = Math.min(requestedK, 20);
 
       // Search the repository
       const results = await repoSearch.search(params.repoPath, params.query, {

@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { promises as fs } from 'fs';
 import { join } from 'path';
+import ignore from 'ignore';
 import { FileScanner, DirectoryNode } from '../utils/file-scanner.js';
 import { CodeChunker } from '../utils/code-chunker.js';
 import { EmbeddingCache, EmbeddingEntry, IndexMetadata } from '../utils/embedding-cache.js';
@@ -92,46 +93,55 @@ export class RepositorySearch {
     const codeFiles = this.collectCodeFiles(files, excludePatterns);
     console.log(`Found ${codeFiles.length} code files to index`);
 
-    // Generate embeddings for all chunks
+    // Generate embeddings for all chunks with rate limiting
     const allEntries: EmbeddingEntry[] = [];
+    const concurrencyLimit = 5; // Process 5 files at a time
     let processedFiles = 0;
 
-    for (const file of codeFiles) {
-      try {
-        const fullPath = join(repoPath, file.path);
-        const content = await fs.readFile(fullPath, 'utf-8');
+    for (let i = 0; i < codeFiles.length; i += concurrencyLimit) {
+      const batch = codeFiles.slice(i, i + concurrencyLimit);
+      const batchPromises = batch.map(async (file) => {
+        try {
+          const fullPath = join(repoPath, file.path);
+          const content = await fs.readFile(fullPath, 'utf-8');
 
-        // Chunk the file
-        const language = file.language || 'unknown';
-        const chunks = this.chunker.chunkFile(content, file.path, language, {
-          maxChunkSize,
-        });
-
-        // Generate embeddings for each chunk
-        for (const chunk of chunks) {
-          const embedding = await this.generateEmbedding(chunk.content, model);
-
-          allEntries.push({
-            chunkId: chunk.chunkId,
-            filePath: chunk.filePath,
-            content: chunk.content,
-            embedding,
-            metadata: {
-              startLine: chunk.startLine,
-              endLine: chunk.endLine,
-              language: chunk.language,
-            },
+          // Chunk the file
+          const language = file.language || 'unknown';
+          const chunks = this.chunker.chunkFile(content, file.path, language, {
+            maxChunkSize,
           });
-        }
 
-        processedFiles++;
-        if (processedFiles % 10 === 0) {
-          console.log(`Processed ${processedFiles}/${codeFiles.length} files...`);
+          // Generate embeddings for each chunk
+          const chunkEntries: EmbeddingEntry[] = [];
+          for (const chunk of chunks) {
+            const embedding = await this.generateEmbedding(chunk.content, model);
+
+            chunkEntries.push({
+              chunkId: chunk.chunkId,
+              filePath: chunk.filePath,
+              content: chunk.content,
+              embedding,
+              metadata: {
+                startLine: chunk.startLine,
+                endLine: chunk.endLine,
+                language: chunk.language,
+              },
+            });
+          }
+
+          return chunkEntries;
+        } catch (error) {
+          console.error(`Error processing file ${file.path}:`, error);
+          return [];
         }
-      } catch (error) {
-        console.error(`Error processing file ${file.path}:`, error);
-        // Continue with next file
-      }
+      });
+
+      const batchResults = await Promise.all(batchPromises);
+      allEntries.push(...batchResults.flat());
+
+      processedFiles += batch.length;
+      const percentage = Math.round((processedFiles / codeFiles.length) * 100);
+      console.log(`Progress: ${processedFiles}/${codeFiles.length} files (${percentage}%)...`);
     }
 
     console.log(`Generated ${allEntries.length} embeddings`);
@@ -192,6 +202,7 @@ export class RepositorySearch {
 
   /**
    * Update index for specific files (incremental update)
+   * Removes old chunks for changed files before adding new ones
    */
   async updateIndex(repoPath: string, changedFiles: string[]): Promise<void> {
     if (!this.genAI) {
@@ -203,6 +214,10 @@ export class RepositorySearch {
     if (!index) {
       throw new Error('Repository has not been indexed. Please run index_repository first.');
     }
+
+    // Remove old chunks for changed files
+    const filesToUpdate = new Set(changedFiles);
+    const remainingChunks = index.chunks.filter((chunk) => !filesToUpdate.has(chunk.filePath));
 
     const updatedEntries: EmbeddingEntry[] = [];
 
@@ -236,51 +251,75 @@ export class RepositorySearch {
       }
     }
 
-    // Update cache
-    await this.cache.update(repoPath, updatedEntries);
+    // Combine remaining chunks with updated chunks
+    const allChunks = [...remainingChunks, ...updatedEntries];
+
+    // Save updated index
+    await this.cache.save(repoPath, allChunks, index.metadata.model);
   }
 
   /**
-   * Generate embedding for text using Gemini Embedding API
+   * Generate embedding for text using Gemini Embedding API with retry logic
    */
-  private async generateEmbedding(text: string, model: string): Promise<number[]> {
+  private async generateEmbedding(
+    text: string,
+    model: string,
+    retries: number = 3
+  ): Promise<number[]> {
     if (!this.genAI) {
       throw new Error('Gemini API not initialized');
     }
 
-    try {
-      const embeddingModel = this.genAI.getGenerativeModel({ model });
-      const result = await embeddingModel.embedContent(text);
-      return result.embedding.values;
-    } catch (error) {
-      console.error('Error generating embedding:', error);
-      throw error;
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        // Use getGenerativeModel for embedding generation
+        const embeddingModel = this.genAI.getGenerativeModel({ model });
+        const result = await embeddingModel.embedContent(text);
+        return result.embedding.values;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('Unknown embedding error');
+        console.error(`Embedding generation attempt ${attempt + 1} failed:`, error);
+
+        // If not last attempt, wait with exponential backoff
+        if (attempt < retries) {
+          const delay = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      }
     }
+
+    throw lastError || new Error('Failed to generate embedding after retries');
   }
 
   /**
-   * Collect all code files from directory tree
+   * Collect all code files from directory tree with proper glob pattern matching
    */
   private collectCodeFiles(
     nodes: DirectoryNode[],
     excludePatterns: string[],
     result: DirectoryNode[] = []
   ): DirectoryNode[] {
-    for (const node of nodes) {
-      if (node.type === 'file' && node.language && node.language !== 'unknown') {
-        // Check if file matches any exclude pattern
-        const shouldExclude = excludePatterns.some((pattern) => node.path.includes(pattern));
+    // Create ignore instance for glob pattern matching
+    const ig = ignore().add(excludePatterns);
 
-        if (!shouldExclude) {
-          result.push(node);
+    const collect = (nodes: DirectoryNode[]) => {
+      for (const node of nodes) {
+        if (node.type === 'file' && node.language && node.language !== 'unknown') {
+          // Use ignore library for proper glob pattern matching
+          if (!ig.ignores(node.path)) {
+            result.push(node);
+          }
+        }
+
+        if (node.children) {
+          collect(node.children);
         }
       }
+    };
 
-      if (node.children) {
-        this.collectCodeFiles(node.children, excludePatterns, result);
-      }
-    }
-
+    collect(nodes);
     return result;
   }
 

@@ -37,9 +37,9 @@ export interface DiagramConfig {
  * Generation settings
  */
 export interface GenerationConfig {
-  defaultModel: string;
-  maxTokensPerSection: number;
-  parallelSections: number;
+  defaultModel?: string;
+  maxTokensPerSection?: number;
+  parallelSections?: number;
 }
 
 /**
@@ -170,12 +170,15 @@ export class WikiGenerator {
     // Deep merge the configs
     const merged: WikiConfig = {
       version: userConfig.version || this.DEFAULT_CONFIG.version,
-      metadata: { ...this.DEFAULT_CONFIG.metadata, ...userConfig.metadata },
+      metadata: {
+        ...(this.DEFAULT_CONFIG.metadata || {}),
+        ...(userConfig.metadata || {}),
+      },
       repoNotes: userConfig.repoNotes,
       sections: userConfig.sections || this.DEFAULT_CONFIG.sections,
       diagrams: {
-        ...this.DEFAULT_CONFIG.diagrams,
-        ...userConfig.diagrams,
+        ...(this.DEFAULT_CONFIG.diagrams || {}),
+        ...(userConfig.diagrams || {}),
       },
       exclude: {
         paths: [
@@ -184,8 +187,8 @@ export class WikiGenerator {
         ],
       },
       generation: {
-        ...this.DEFAULT_CONFIG.generation!,
-        ...userConfig.generation,
+        ...(this.DEFAULT_CONFIG.generation || {}),
+        ...(userConfig.generation || {}),
       },
     };
 
@@ -221,7 +224,11 @@ export class WikiGenerator {
       : config.sections?.filter((s) => s.enabled !== false);
 
     if (!sectionsToGenerate || sectionsToGenerate.length === 0) {
-      throw new Error('No sections to generate. Check your configuration.');
+      const availableSections = config.sections?.map((s) => s.type).join(', ') || 'none';
+      const requestedSections = options?.sections?.join(', ') || 'all enabled';
+      throw new Error(
+        `No sections to generate. Requested sections: ${requestedSections}. Available sections: ${availableSections}. Check your configuration or section names.`
+      );
     }
 
     let totalTokens = 0;
@@ -343,19 +350,25 @@ export class WikiGenerator {
   }
 
   /**
-   * Build a custom prompt with variable substitution
+   * Build a custom prompt with variable substitution (optimized single-pass)
    */
   private buildCustomPrompt(
     customPrompt: string,
     analysis: RepositoryAnalysis,
     repoNotes?: string
   ): string {
-    // Replace variables in custom prompt
-    let prompt = customPrompt;
-    prompt = prompt.replace(/\{NAME\}/g, analysis.metadata.name);
-    prompt = prompt.replace(/\{LANGUAGE\}/g, analysis.techStack.primaryLanguage);
-    prompt = prompt.replace(/\{FRAMEWORKS\}/g, analysis.techStack.frameworks.join(', '));
-    prompt = prompt.replace(/\{DESCRIPTION\}/g, analysis.metadata.description || '');
+    // Variable mapping for single-pass replacement
+    const variables: Record<string, string> = {
+      NAME: analysis.metadata.name,
+      LANGUAGE: analysis.techStack.primaryLanguage,
+      FRAMEWORKS: analysis.techStack.frameworks.join(', '),
+      DESCRIPTION: analysis.metadata.description || '',
+    };
+
+    // Single-pass replacement using regex
+    let prompt = customPrompt.replace(/\{(\w+)\}/g, (match, key) => {
+      return variables[key] !== undefined ? variables[key] : match;
+    });
 
     // Add repo notes if provided
     if (repoNotes) {

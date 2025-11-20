@@ -73,14 +73,20 @@ export class EmbeddingCache {
   }
 
   /**
-   * Load embeddings from cache
+   * Load embeddings from cache with schema validation
    */
   async load(repoPath: string): Promise<EmbeddingIndex | null> {
     const cachePath = this.getCachePath(repoPath);
 
     try {
       const content = await fs.readFile(cachePath, 'utf-8');
-      const index = JSON.parse(content) as EmbeddingIndex;
+      const index = JSON.parse(content);
+
+      // Validate schema
+      if (!this.isValidEmbeddingIndex(index)) {
+        console.warn('Invalid cache file structure, ignoring cache');
+        return null;
+      }
 
       // Validate version
       if (index.metadata.version !== this.CACHE_VERSION) {
@@ -90,11 +96,43 @@ export class EmbeddingCache {
         return null;
       }
 
-      return index;
+      return index as EmbeddingIndex;
     } catch (error) {
       // Cache doesn't exist or can't be read
       return null;
     }
+  }
+
+  /**
+   * Validate embedding index structure
+   */
+  private isValidEmbeddingIndex(obj: unknown): obj is EmbeddingIndex {
+    if (!obj || typeof obj !== 'object') return false;
+
+    const index = obj as Partial<EmbeddingIndex>;
+
+    // Check metadata
+    if (!index.metadata || typeof index.metadata !== 'object') return false;
+    if (typeof index.metadata.repoPath !== 'string') return false;
+    if (typeof index.metadata.indexedAt !== 'string') return false;
+    if (typeof index.metadata.totalChunks !== 'number') return false;
+    if (typeof index.metadata.model !== 'string') return false;
+    if (typeof index.metadata.version !== 'string') return false;
+
+    // Check chunks array
+    if (!Array.isArray(index.chunks)) return false;
+
+    // Validate first chunk if exists (spot check)
+    if (index.chunks.length > 0) {
+      const chunk = index.chunks[0] as Partial<EmbeddingEntry>;
+      if (typeof chunk.chunkId !== 'string') return false;
+      if (typeof chunk.filePath !== 'string') return false;
+      if (typeof chunk.content !== 'string') return false;
+      if (!Array.isArray(chunk.embedding)) return false;
+      if (!chunk.metadata || typeof chunk.metadata !== 'object') return false;
+    }
+
+    return true;
   }
 
   /**
@@ -215,6 +253,11 @@ export class EmbeddingCache {
     entries: EmbeddingEntry[],
     k: number = 5
   ): Array<{ entry: EmbeddingEntry; score: number }> {
+    // Validate k
+    if (k <= 0) {
+      throw new Error('k must be a positive number');
+    }
+
     // Calculate similarities
     const similarities = entries.map((entry) => ({
       entry,
@@ -224,7 +267,7 @@ export class EmbeddingCache {
     // Sort by score descending
     similarities.sort((a, b) => b.score - a.score);
 
-    // Return top K
-    return similarities.slice(0, k);
+    // Return top K (clamp to array length)
+    return similarities.slice(0, Math.min(k, similarities.length));
   }
 }
