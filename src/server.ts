@@ -5,6 +5,7 @@ import { ContextTracker } from './tools/context-tracker.js';
 import { CostEstimator } from './tools/cost-estimator.js';
 import { RepositoryAnalyzer } from './tools/repo-analyzer.js';
 import { WikiGenerator } from './tools/wiki-generator.js';
+import { RepositorySearch } from './tools/repo-search.js';
 
 const server = new McpServer({
   name: 'gemini-context-extension',
@@ -15,9 +16,10 @@ const contextTracker = new ContextTracker();
 const costEstimator = new CostEstimator();
 const repoAnalyzer = new RepositoryAnalyzer();
 
-// Initialize WikiGenerator with API key from environment
+// Initialize WikiGenerator and RepositorySearch with API key from environment
 const apiKey = process.env.GEMINI_API_KEY;
 const wikiGenerator = apiKey ? new WikiGenerator(apiKey) : null;
+const repoSearch = apiKey ? new RepositorySearch(apiKey) : null;
 
 // Context Window Tracker Tool
 server.registerTool(
@@ -284,8 +286,8 @@ server.registerTool(
         maxDepth: 10,
       });
 
-      // Generate wiki
-      const wiki = await wikiGenerator.generate(analysis, {
+      // Generate wiki (now passing repoPath for config loading)
+      const wiki = await wikiGenerator.generate(analysis, params.repoPath, {
         model: params.model,
         sections: params.sections,
         includeDiagrams: params.includeDiagrams ?? true,
@@ -320,6 +322,189 @@ server.registerTool(
                 error instanceof Error
                   ? error.message
                   : 'Unknown error occurred during wiki generation',
+            }),
+          },
+        ],
+      };
+    }
+  }
+);
+
+// Repository Indexing Tool (Phase 4)
+server.registerTool(
+  'index_repository',
+  {
+    description:
+      'Create a searchable semantic index of a repository using embeddings. This enables semantic code search across the entire codebase. Requires GEMINI_API_KEY environment variable.',
+    inputSchema: z.object({
+      repoPath: z.string().describe('Absolute path to repository to index'),
+      force: z
+        .boolean()
+        .optional()
+        .describe('Force re-indexing even if cache exists (default: false)'),
+      maxChunkSize: z
+        .number()
+        .optional()
+        .describe('Maximum chunk size in characters (default: 2000)'),
+      model: z.string().optional().describe('Embedding model to use (default: text-embedding-004)'),
+      excludePatterns: z
+        .array(z.string())
+        .optional()
+        .describe(
+          'File patterns to exclude (glob patterns like "**/*.test.ts", default: empty array)'
+        ),
+    }).shape,
+  },
+  async (params) => {
+    try {
+      // Check if repository search is available
+      if (!repoSearch) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                error:
+                  'Repository search not available. Please set GEMINI_API_KEY environment variable.',
+                hint: 'Get a free API key at https://aistudio.google.com/app/apikey',
+              }),
+            },
+          ],
+        };
+      }
+
+      // Index the repository
+      const metadata = await repoSearch.indexRepository(params.repoPath, {
+        force: params.force ?? false,
+        maxChunkSize: params.maxChunkSize,
+        model: params.model,
+        excludePatterns: params.excludePatterns,
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                success: true,
+                message: `Repository indexed successfully`,
+                metadata,
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    } catch (error) {
+      console.error('Indexing error:', error);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              error:
+                error instanceof Error ? error.message : 'Unknown error occurred during indexing',
+            }),
+          },
+        ],
+      };
+    }
+  }
+);
+
+// Repository Search Tool (Phase 4)
+server.registerTool(
+  'search_repository',
+  {
+    description:
+      'Perform semantic search across an indexed repository. Returns code snippets most relevant to your query using AI embeddings. Repository must be indexed first using index_repository.',
+    inputSchema: z.object({
+      repoPath: z.string().describe('Absolute path to indexed repository'),
+      query: z.string().describe('Natural language search query'),
+      topK: z.number().optional().describe('Number of results to return (default: 5, max: 20)'),
+      minScore: z.number().optional().describe('Minimum similarity score 0-1 (default: 0.5)'),
+      includeContext: z
+        .boolean()
+        .optional()
+        .describe('Include surrounding context for results (default: false)'),
+    }).shape,
+  },
+  async (params) => {
+    try {
+      // Check if repository search is available
+      if (!repoSearch) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                error:
+                  'Repository search not available. Please set GEMINI_API_KEY environment variable.',
+                hint: 'Get a free API key at https://aistudio.google.com/app/apikey',
+              }),
+            },
+          ],
+        };
+      }
+
+      // Validate topK
+      const requestedK = params.topK || 5;
+      if (requestedK < 1) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                error: 'topK must be at least 1',
+                hint: 'Provide a positive number for topK parameter',
+              }),
+            },
+          ],
+        };
+      }
+      const topK = Math.min(requestedK, 20);
+
+      // Search the repository
+      const results = await repoSearch.search(params.repoPath, params.query, {
+        topK,
+        minScore: params.minScore,
+        includeContext: params.includeContext,
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                query: params.query,
+                resultsCount: results.length,
+                results: results.map((r) => ({
+                  file: r.filePath,
+                  lines: `${r.startLine}-${r.endLine}`,
+                  language: r.language,
+                  similarity: r.score.toFixed(3),
+                  content: r.content,
+                  ...(r.context && { context: r.context }),
+                })),
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    } catch (error) {
+      console.error('Search error:', error);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              error:
+                error instanceof Error ? error.message : 'Unknown error occurred during search',
             }),
           },
         ],

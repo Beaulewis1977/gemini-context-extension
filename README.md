@@ -7,13 +7,15 @@
 
 ## What It Does
 
-This extension adds five powerful tools to your Gemini CLI that solve critical visibility gaps:
+This extension adds seven powerful tools to your Gemini CLI that solve critical visibility gaps:
 
 1. **Context Window Tracker** - Real-time monitoring of your token usage and context capacity across all Gemini models
 2. **Cost Estimator** - Accurate API cost calculations with comprehensive model comparisons and savings analysis
 3. **Model Comparison** - Side-by-side comparison of all Gemini models with pricing, context windows, and cost estimates
 4. **Repository Analyzer** - Comprehensive codebase analysis with tech stack detection, language statistics, and file categorization
-5. **Wiki Generator** - AI-powered documentation generation with Mermaid diagrams and customizable sections
+5. **Wiki Generator** - AI-powered documentation generation with Mermaid diagrams and customizable sections (with configuration support)
+6. **Repository Indexer** - Create semantic embeddings of your codebase for intelligent search
+7. **Semantic Code Search** - Search your repository using natural language queries powered by RAG
 
 ### Why You Need This
 
@@ -115,7 +117,7 @@ gemini
 /tools list
 ```
 
-You should see `track_context_usage`, `estimate_api_cost`, `compare_gemini_models`, `analyze_repository`, and `generate_repository_wiki` in the list.
+You should see `track_context_usage`, `estimate_api_cost`, `compare_gemini_models`, `analyze_repository`, `generate_repository_wiki`, `index_repository`, and `search_repository` in the list.
 
 ## Usage
 
@@ -286,6 +288,103 @@ The tool will:
 
 **Note:** Requires `GEMINI_API_KEY` environment variable. Get a free key at [Google AI Studio](https://aistudio.google.com/app/apikey).
 
+### 🔧 Wiki Configuration (Phase 3)
+
+Customize wiki generation with `.gemini/wiki.json` configuration file:
+
+- **Custom Sections**: Define which sections to generate and their order
+- **Section-Specific Models**: Use different Gemini models for different sections (e.g., Pro for architecture, Flash for setup)
+- **Custom Prompts**: Add custom sections with your own prompts
+- **Repository Notes**: Provide additional context that informs all documentation
+- **Path Exclusions**: Skip specific files or directories during analysis
+- **Metadata Overrides**: Override repository title and description
+
+**Example `.gemini/wiki.json`:**
+```json
+{
+  "version": "1.0",
+  "metadata": {
+    "title": "My Awesome Project",
+    "description": "Custom description"
+  },
+  "repoNotes": "Important context about this project...",
+  "sections": [
+    { "type": "overview", "enabled": true },
+    { "type": "architecture", "model": "gemini-2.5-pro" },
+    {
+      "type": "custom",
+      "title": "Security Considerations",
+      "prompt": "Analyze security measures in {LANGUAGE}..."
+    }
+  ],
+  "diagrams": { "enabled": true, "types": ["architecture", "dataflow"] },
+  "exclude": { "paths": ["node_modules/**", "dist/**"] }
+}
+```
+
+See `.gemini/wiki.json.example` for a complete configuration template.
+
+### 🔍 Semantic Code Search (Phase 4)
+
+Search your codebase using natural language powered by AI embeddings:
+
+#### Index Your Repository
+
+```bash
+> Index the repository at /path/to/my-project for semantic search
+```
+
+The indexer will:
+- Scan all code files in your repository
+- Create semantic chunks respecting function/class boundaries
+- Generate embeddings using Gemini's text-embedding-004 model
+- Cache embeddings locally in `.gemini/embeddings.json`
+- Display progress and indexing statistics
+
+#### Search Your Code
+
+```bash
+> Search for "authentication implementation" in /path/to/my-project
+> How does error handling work in this codebase?
+> Find examples of API endpoint definitions
+```
+
+**Search Features:**
+- **Natural Language Queries**: Ask questions in plain English
+- **Semantic Understanding**: Finds conceptually similar code, not just keyword matches
+- **Ranked Results**: Results sorted by relevance score
+- **Context Awareness**: See exactly which file and lines match your query
+- **Fast**: Uses cached embeddings for instant search
+- **Incremental Updates**: Re-index only changed files
+
+**Advanced Options:**
+```bash
+> Search with top 10 results and minimum score 0.7
+> Include surrounding context in search results
+```
+
+**Example Output:**
+```json
+{
+  "query": "authentication implementation",
+  "resultsCount": 5,
+  "results": [
+    {
+      "file": "src/auth/login.ts",
+      "lines": "45-78",
+      "language": "TypeScript",
+      "similarity": "0.892",
+      "content": "async function authenticateUser(credentials) {...}"
+    }
+  ]
+}
+```
+
+**Requirements:**
+- Requires `GEMINI_API_KEY` environment variable
+- Repository must be indexed first using `index_repository` tool
+- Embeddings cached locally for fast subsequent searches
+
 ## Supported Models
 
 ### Gemini 2.5 Series (Latest - 2025)
@@ -453,14 +552,19 @@ gemini-context-extension/
 │   ├── tools/
 │   │   ├── context-tracker.ts    # Context analysis tool
 │   │   ├── cost-estimator.ts     # Cost estimation tool
-│   │   ├── repo-analyzer.ts      # Repository analyzer tool
-│   │   └── wiki-generator.ts     # Wiki generator tool
+│   │   ├── repo-analyzer.ts      # Repository analyzer tool (Phase 1)
+│   │   ├── wiki-generator.ts     # Wiki generator tool (Phase 2 & 3)
+│   │   └── repo-search.ts        # Semantic search tool (Phase 4)
 │   └── utils/
 │       ├── token-counter.ts      # Token estimation utilities
 │       ├── project-detection.ts  # Gemini directory finder
 │       ├── file-scanner.ts       # Filesystem scanning utilities
-│       └── prompt-builder.ts     # AI prompt construction
+│       ├── prompt-builder.ts     # AI prompt construction
+│       ├── code-chunker.ts       # Code chunking for embeddings (Phase 4)
+│       └── embedding-cache.ts    # Embedding storage (Phase 4)
 ├── dist/                         # Compiled JavaScript (generated)
+├── .gemini/
+│   └── wiki.json.example         # Example wiki configuration (Phase 3)
 ├── gemini-extension.json         # Extension manifest
 ├── GEMINI.md                     # Context instructions
 ├── package.json                  # Node.js package config
