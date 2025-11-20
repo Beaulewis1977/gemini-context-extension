@@ -85,7 +85,7 @@ export class RepositorySearch {
     // Scan repository
     const files = await this.scanner.scanDirectory(repoPath, {
       maxDepth: 10,
-      includeStats: false,
+      includeStats: true,
       respectGitignore: true,
     });
 
